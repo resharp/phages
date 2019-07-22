@@ -58,7 +58,7 @@ class IctvStatsTest(unittest.TestCase) :
 if __name__ == '__main__':
     filename = "ICTV Master Species List 2018b.v1.csv"
 
-    mydir = "D:\\09 Introduction to Python\\ML-python"
+    mydir = "/home/richard/source/phages"
     os.chdir(mydir)  # sets working directory
 
     ictv_stats = IctvStats(filename)
