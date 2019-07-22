@@ -99,6 +99,7 @@ class IctvStats :
 
         join_data = self.ictv_data.merge(self.prok_data, left_on=self.ictv_data.host, right_on=self.prok_data.host,how='inner')
 
+        print("nr of phages in the ICTV data")
         print(len(join_data))
 
         return join_data
