@@ -5,9 +5,10 @@ class IctvStats :
     ictv_data = None
     prok_data = None
 
-    def __init__(self, filename):
-        self.filename = filename
-        self.ictv_data = pd.read_csv(filename, delimiter=";")
+    def __init__(self, mydir):
+
+        self.filename = mydir + "ICTV Master Species List 2018b.v1.csv"
+        self.ictv_data = pd.read_csv(self.filename, delimiter=";")
 
         # add derived fields
         self.ictv_data['count'] = 1
