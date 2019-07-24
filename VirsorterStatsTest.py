@@ -23,9 +23,11 @@ class VirsorterStatsTest(unittest.TestCase):
         cols = self.vs_stats.phage_data.columns.values
         assert 'Category' in cols
         assert 'Contig_id' in cols
+        assert 'phage_gene_start' in cols
+        assert 'phage_gene_end' in cols
 
-    def test_counts_of_category_1_is_2(self):
-        assert self.vs_stats.category_counts()['1'] == 2
+    def test_counts_of_category_1_is_larger_than_0(self):
+        assert self.vs_stats.category_counts()['1'] > 0
 
     def test_nr_of_phages_larger_than_10(self):
         self.assertGreater(self.vs_stats.nr_of_phages(), 10)
@@ -52,26 +54,36 @@ class VirsorterStatsTest(unittest.TestCase):
         # print("Length of filtered affi contig file:")
         # print(len(self.vs_stats.all_affi_data))
 
-    #this method probably is going to confuse
-    #because we are not looking at the shared genes (yet)
+    #this method probably is going to confuse?
+    #because we are not looking at the shared genes here
+    #TODO: remove this test
     def test_top_gene_is_individual_gene(self):
         best_gene = self.vs_stats.all_gene_counts().index[0]
-        print("The most abundant gene in all contigs (not just phages)")
-        print(best_gene)
+
+        # print("The most abundant gene in all contigs (not just phages)")
+        # print(best_gene)
+
         self.assertEqual(best_gene.find("gi_"), 0)
 
-    # def test_convert_gene_id_to_contig_id(self):
-    #
-    #     gene_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]-gene_8"
-    #     contig_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]"
-    #
-    #     self.assertEqual(self.vs_stats.gene_to_contig(gene_id), contig_id)
+    def test_convert_gene_id_to_contig_id(self):
+
+        gene_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]-gene_8"
+        contig_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]"
+
+        self.assertEqual(self.vs_stats.gene_to_contig(gene_id), contig_id)
+
+    def test_convert_gene_id_to_nr(self):
+        gene_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]-gene_8"
+        gene_nr = "8"
+        self.assertEqual(self.vs_stats.gene_to_nr(gene_id), gene_nr)
+
 
     def test_phage_affi_data_columns_contains_essential_fields(self):
         cols = self.vs_stats.phage_affi_data.columns.values
 
         assert 'key_0' not in cols
         assert 'Contig_id' in cols
+        assert 'gene_nr' in cols
 
     def test_phage_affi_contains_contigs_with_predicted_phages(self):
 
@@ -84,8 +96,39 @@ class VirsorterStatsTest(unittest.TestCase):
             # print(random_affi_contig)
             assert random_affi_contig in phage_contigs
 
-# also join the simple annotations from the affi file
-# look at the top Phage clusters and genes of the shared files
+    def test_most_abundant_shared_genes_contain_phage_clusters(self):
+        #https://stackoverflow.com/questions/35268817/unique-combinations-of-values-in-selected-columns-in-pandas-data-frame-and-count
+        combi_counts = self.vs_stats.contig_gene_counts()
+
+        # print(combi_counts.head(10))
+
+        assert len(combi_counts) > 0
+
+    def test_phage_affi_only_contains_genes_that_are_part_of_the_fragment(self):
+        #example:
+        #VIRSorter_MWYY01000037___MWYY01000037_1___[Acidobacteria_bacterium_28-9_strain_28-9___1962176_3]-gene_2-gene_16
+        #gene_1 and gene_17 should not be included
+
+        df = self.vs_stats.phage_affi_data
+        unfiltered_phage_affi = df
+
+        len_unfiltered = len(unfiltered_phage_affi)
+
+        filtered_phage_affi = df[
+            (df.gene_nr >= df.phage_gene_start)
+            & (df.gene_nr <= df.phage_gene_end)
+        ]
+
+        len_filtered = len(filtered_phage_affi)
+
+        self.assertEqual(len_unfiltered, len_filtered)
+
+    #TODO look at the top Phage clusters and genes of the shared files
+    def test_mostly_shared_genes_do_not_contain_genes_used_only_once(self):
+        assert 1 == 1
+
+    def test_mostly_shared_genes_contain_simple_annotation(self):
+        assert 1 == 1
 
 if __name__ == '__main__':
     unittest.main()
