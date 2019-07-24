@@ -1,6 +1,9 @@
 import pandas as pd
 import os
 import re
+import logging
+
+
 
 class VirsorterStats:
     phage_signal_filename = ""
@@ -19,28 +22,43 @@ class VirsorterStats:
             #switch to linux style
             self.all_affi_filename = mydir + "Metric_files/VIRSorter_affi-contigs.tab"
 
+        logging.basicConfig(filename='VirsorterStats.log', filemode='w', format='%(asctime)s - %(message)s',
+                            level=logging.DEBUG)
+        logging.info('Start VirsorterStats')
+
         self.read_phage_data(self.phage_signal_filename)
+
         self.read_affi_data(self.all_affi_filename)
 
     def read_phage_data(self, phage_signal_filename):
 
+        logging.debug("start opening file with phage data")
         f = open(phage_signal_filename, 'r')
+
+        logging.debug("start reading all lines")
         lines = f.readlines()
         header = lines[1].replace("## ", "")
+        logging.debug("start filtering out comments in all lines with list comprehension")
         lines_no_comment = [n for n in lines if not n.startswith('##')]
         f.close()
 
         filename2 = phage_signal_filename + ".csv"
         f2 = open(filename2, 'w')
         f2.write(header)
+        logging.debug("start writing all lines to intermediary file")
         f2.writelines(lines_no_comment)
+        logging.debug("end writing all lines to intermediary file")
         f2.close()
 
+        logging.debug("start read phage data from csv")
         self.phage_data= pd.read_csv(filename2, delimiter=",")
+        logging.debug("end read phage data from csv")
 
+        logging.debug("start looping and doing string operations on every single row")
         for i, row in self.phage_data.iterrows():
             fragment = self.phage_data.at[i, 'Fragment']
 
+            #TODO Improve performance Can we do this in one go instead of three?
             if fragment.find("-gene_") > 0:
                 phage_gene_start = re.sub("(.*)\-gene_([0-9]*)-gene_([0-9]*)", "\\2", fragment)
                 phage_gene_end = re.sub("(.*)\-gene_([0-9]*)-gene_([0-9]*)", "\\3", fragment)
@@ -50,6 +68,7 @@ class VirsorterStats:
 
             self.phage_data.at[i, 'phage_gene_start'] = int(phage_gene_start)
             self.phage_data.at[i, 'phage_gene_end'] = int(phage_gene_end)
+        logging.debug("end looping and doing string operations on every single row")
 
         # TODO: remove this copy if no longer necessary
         # self.phage_data.to_csv(filename2, sep=';', index=False)
@@ -58,31 +77,45 @@ class VirsorterStats:
     #TODO: change types of new fiels to int for better readability
     def read_affi_data(self, all_affi_filename):
 
+        logging.debug("start open affi data")
         f = open(all_affi_filename, 'r')
+        logging.debug("start read all lines of affi data in one go")
         lines = f.readlines()
+
+        ##TODO: Improve performance, can we read the lines in chunks and not load everything in memory
+        logging.debug("start filtering all lines on comments")
         lines_no_comment = [n for n in lines if not n.startswith('>')]
         f.close()
 
         filename2 = all_affi_filename + ".csv"
         f2 = open(filename2, 'w')
         f2.write("gene_id|nr1|nr2|nr3|nr4|gene_name|nr_6|nr_7|nr_8|short_annotation|nr_10|nr_11")
+        logging.debug("start writing all lines of affi data to intermediary file")
         f2.writelines(lines_no_comment)
         f2.close()
 
+        logging.debug("start read affi data from csv")
         self.all_affi_data = pd.read_csv(filename2, delimiter="|")
-        self.all_affi_data = self.all_affi_data[self.all_affi_data.gene_name != ""]
-        self.all_affi_data = self.all_affi_data[self.all_affi_data.gene_name != "-"]
+
+        logging.debug("start filtering out empty gene names")
+        self.all_affi_data = self.all_affi_data[(self.all_affi_data.gene_name != "") & (self.all_affi_data.gene_name != "-")]
+        logging.debug("end filtering out empty gene names")
 
         list_contigs = list(self.phage_data.Contig_id)
 
         #add derived field Contig_id for joining
+
+        logging.debug("start calculating Contig_id")
         self.all_affi_data['Contig_id'] = self.all_affi_data.gene_id.str.replace("\-gene_[0-9]*", "")
 
         #now join all_affi_data and phage_data on Contig_id
+        logging.debug("start merging with phage data")
+        #TODO: would it be possible to limit the number of columns beforehand?
         self.phage_affi_data = self.all_affi_data.merge(self.phage_data
                                              , left_on=self.all_affi_data.Contig_id
                                              , right_on=self.phage_data.Contig_id
                                              , how='inner')
+        logging.debug("start selecting just af few columns of the affi data")
         self.phage_affi_data = self.phage_affi_data[[
             'key_0'
             , 'gene_id'
@@ -92,7 +125,10 @@ class VirsorterStats:
             , 'phage_gene_start'
             , 'Nb genes'
         ]]
+        logging.debug("start renaming column")
         self.phage_affi_data.rename(columns={'key_0':'Contig_id'}, inplace=True)
+
+        logging.debug("start computing gene_nr with regex")
 
         for i, row in self.phage_affi_data.iterrows():
             gene_id = self.phage_affi_data.at[i, 'gene_id']
@@ -100,6 +136,8 @@ class VirsorterStats:
             self.phage_affi_data.at[i, 'gene_nr'] = int(gene_nr)
 
         #now we only need the genes that are in the phage fragments
+
+        logging.debug("start filtering out genes that are not in the phage fragments")
         self.phage_affi_data = self.phage_affi_data[
             (self.phage_affi_data.gene_nr >= self.phage_affi_data.phage_gene_start)
             & (self.phage_affi_data.gene_nr <= self.phage_affi_data.phage_gene_end)
@@ -157,7 +195,6 @@ class VirsorterStats:
         # df1.groupby(['A', 'B']).size().reset_index().rename(columns={0: 'count'})
 
         return contig_gene_counts
-
 
 # self.phage_affi_data[self.phage_affi_data.gene_name.str.find("Phage_cluster") == 0].gene_name.value_counts()
 

@@ -3,6 +3,7 @@ import unittest
 import logging
 
 class MyTestCase(unittest.TestCase):
+
     def get_func_name(self):
         stack = traceback.extract_stack()
         filename, codeline, funcName, text = stack[-3]
