@@ -52,7 +52,7 @@ class VirsorterStats:
             self.phage_data.at[i, 'phage_gene_end'] = int(phage_gene_end)
 
         # TODO: remove this copy if no longer necessary
-        self.phage_data.to_csv(filename2, sep=';', index=False)
+        # self.phage_data.to_csv(filename2, sep=';', index=False)
 
 
     #TODO: change types of new fiels to int for better readability
@@ -106,7 +106,7 @@ class VirsorterStats:
         ]
 
         #TODO: remove this copy if no longer necessary
-        self.phage_affi_data.to_csv(filename2, sep=';', index=False)
+        # self.phage_affi_data.to_csv(filename2, sep=';', index=False)
 
 
     def category_counts(self):
