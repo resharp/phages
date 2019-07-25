@@ -12,6 +12,7 @@ class VirsorterStats:
     phage_data = None
     all_affi_data = None
     phage_affi_data = None
+    gene_counts = None
 
     def __init__(self, mydir):
 
@@ -29,6 +30,8 @@ class VirsorterStats:
         self.read_phage_data(self.phage_signal_filename)
 
         self.read_affi_data(self.all_affi_filename)
+
+        self.calc_gene_counts(mydir)
 
     def read_phage_data(self, phage_signal_filename):
 
@@ -202,12 +205,40 @@ class VirsorterStats:
 
         return int(contig_id)
 
-    def contig_gene_counts(self):
-        contig_gene_counts = self.phage_affi_data.groupby(['Contig_id', 'gene_name']).size().reset_index()\
-            .rename(columns={0: 'count'}).sort_values(['count'], ascending=[0])
+    def get_gene_counts_df(self):
+        contig_gene_counts = self.phage_affi_data.groupby(['gene_name']).size().reset_index()\
+            .rename(columns={0: 'gene_count'}).sort_values(['gene_count'], ascending=[0])
         # df1.groupby(['A', 'B']).size().reset_index().rename(columns={0: 'count'})
 
         return contig_gene_counts
+
+    def calc_gene_counts(self, mydir):
+
+        self.gene_counts = self.get_gene_counts_df()
+        filename = mydir + "shared_gene_counts.csv"
+
+        self.gene_counts = self.gene_counts[self.gene_counts.gene_count > 1]
+
+        self.gene_counts = self.gene_counts.merge(self.phage_affi_data
+                                             , left_on=self.gene_counts.gene_name
+                                             , right_on=self.phage_affi_data.gene_name
+                                             , how='inner')
+
+        df = self.gene_counts
+
+
+
+        self.gene_counts = pd.DataFrame({'count' : df.groupby( ['key_0', 'gene_count', 'short_annotation'] ).size()})\
+            .reset_index() \
+            .sort_values(['gene_count'], ascending=[0])[['key_0', 'gene_count', 'short_annotation']]
+
+        self.gene_counts.rename(columns={'key_0':'gene_name'}, inplace=True)
+
+        self.gene_counts.to_csv(path_or_buf=filename, index=False)
+
+
+
+
 
 # self.phage_affi_data[self.phage_affi_data.gene_name.str.find("Phage_cluster") == 0].gene_name.value_counts()
 

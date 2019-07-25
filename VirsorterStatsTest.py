@@ -124,10 +124,9 @@ class VirsorterStatsTest(MyTestCase):
 
         self.log_start()
 
-        #https://stackoverflow.com/questions/35268817/unique-combinations-of-values-in-selected-columns-in-pandas-data-frame-and-count
-        combi_counts = self.vs_stats.contig_gene_counts()
+        gene_counts = self.vs_stats.get_gene_counts_df()
 
-        assert len(combi_counts) > 0
+        assert len(gene_counts) > 0
 
     def test_phage_affi_only_contains_genes_that_are_part_of_the_fragment(self):
 
@@ -153,7 +152,6 @@ class VirsorterStatsTest(MyTestCase):
 
     #TODO look at the top Phage clusters and genes of the shared files
     def test_mostly_shared_genes_do_not_contain_genes_used_only_once(self):
-
         self.log_start()
 
         assert 1 == 1
