@@ -1,9 +1,9 @@
+
 import pandas as pd
 import os
 import re
 import logging
-
-
+import io
 
 class VirsorterStats:
     phage_signal_filename = ""
@@ -84,24 +84,32 @@ class VirsorterStats:
 
         ##TODO: Improve performance, can we read the lines in chunks and not load everything in memory
         logging.debug("start filtering all lines on comments")
-        lines_no_comment = [n for n in lines if not n.startswith('>')]
+        #TODO: do this with grep it is way faster
+        lines_no_comment = [n for n in lines if not n[0] == '>'   #quicker than startswith
+                            and not n.__contains__('|-|-|-|-|-|') #this line quickly leaves out empty annotations
+                            ]
+        #lines_no_comment = [n for n in lines if not n[0] == '>']
         f.close()
 
         filename2 = all_affi_filename + ".csv"
         f2 = open(filename2, 'w')
-        f2.write("gene_id|nr1|nr2|nr3|nr4|gene_name|nr_6|nr_7|nr_8|short_annotation|nr_10|nr_11")
+
         logging.debug("start writing all lines of affi data to intermediary file")
         f2.writelines(lines_no_comment)
+        filename2 = all_affi_filename + ".csv"
         f2.close()
 
         logging.debug("start read affi data from csv")
-        self.all_affi_data = pd.read_csv(filename2, delimiter="|")
+
+        #TODO: read in chunks to improve performance and memory usage
+        self.all_affi_data = pd.read_csv(filename2, delimiter="|",
+                                         header=None
+                                         , usecols=[0,5,9]
+                                         , names=['gene_id','gene_name','short_annotation'])
 
         logging.debug("start filtering out empty gene names")
         self.all_affi_data = self.all_affi_data[(self.all_affi_data.gene_name != "") & (self.all_affi_data.gene_name != "-")]
         logging.debug("end filtering out empty gene names")
-
-        list_contigs = list(self.phage_data.Contig_id)
 
         #add derived field Contig_id for joining
 
