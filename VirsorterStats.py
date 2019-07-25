@@ -54,6 +54,8 @@ class VirsorterStats:
         self.phage_data= pd.read_csv(filename2, delimiter=",")
         logging.debug("end read phage data from csv")
 
+        os.remove(filename2)
+
         logging.debug("start looping and doing string operations on every single row")
         for i, row in self.phage_data.iterrows():
             fragment = self.phage_data.at[i, 'Fragment']
@@ -107,6 +109,8 @@ class VirsorterStats:
                                          , usecols=[0,5,9]
                                          , names=['gene_id','gene_name','short_annotation'])
 
+        os.remove(filename2)
+
         logging.debug("start filtering out empty gene names")
         self.all_affi_data = self.all_affi_data[(self.all_affi_data.gene_name != "") & (self.all_affi_data.gene_name != "-")]
         logging.debug("end filtering out empty gene names")
@@ -123,6 +127,9 @@ class VirsorterStats:
                                              , left_on=self.all_affi_data.Contig_id
                                              , right_on=self.phage_data.Contig_id
                                              , how='inner')
+
+        del self.all_affi_data #remove largest in memory object asap
+
         logging.debug("start selecting just af few columns of the affi data")
         self.phage_affi_data = self.phage_affi_data[[
             'key_0'
@@ -137,11 +144,7 @@ class VirsorterStats:
         self.phage_affi_data.rename(columns={'key_0':'Contig_id'}, inplace=True)
 
         logging.debug("start computing gene_nr with regex")
-
-        for i, row in self.phage_affi_data.iterrows():
-            gene_id = self.phage_affi_data.at[i, 'gene_id']
-            gene_nr = self.gene_to_nr(gene_id)
-            self.phage_affi_data.at[i, 'gene_nr'] = int(gene_nr)
+        self.phage_affi_data['gene_nr'] = self.phage_affi_data.gene_id.apply(self.gene_to_nr)
 
         #now we only need the genes that are in the phage fragments
 
@@ -186,16 +189,18 @@ class VirsorterStats:
 
         return len(self.phage_data[self.phage_data.Complete])
 
-    def all_gene_counts(self):
-        return self.all_affi_data.gene_name.value_counts()
+    # def all_gene_counts(self):
+    #     return self.all_affi_data.gene_name.value_counts()
 
     def gene_to_contig(self, gene_id):
         contig_id = re.sub("\-gene_[0-9]*", "", gene_id)
         return contig_id
 
     def gene_to_nr(self, gene_id):
+
         contig_id = re.sub("(.*)\-gene_([0-9]*)", "\\2", gene_id)
-        return contig_id
+
+        return int(contig_id)
 
     def contig_gene_counts(self):
         contig_gene_counts = self.phage_affi_data.groupby(['Contig_id', 'gene_name']).size().reset_index()\

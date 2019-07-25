@@ -58,30 +58,30 @@ class VirsorterStatsTest(MyTestCase):
         self.log_start()
         self.assertGreater(self.vs_stats.nr_of_complete_contigs(), 1)
 
-    def test_affi_contains_non_empty_genes(self):
-        self.log_start()
-        sub_list_empty_genes = self.vs_stats.all_affi_data[self.vs_stats.all_affi_data.gene_name == ""]
+    # def test_affi_contains_non_empty_genes(self):
+    #     self.log_start()
+    #     sub_list_empty_genes = self.vs_stats.all_affi_data[self.vs_stats.all_affi_data.gene_name == ""]
+    #
+    #     self.assertEqual(len(sub_list_empty_genes), 0)
+    #
+    #     sub_list_dash_genes = self.vs_stats.all_affi_data[self.vs_stats.all_affi_data.gene_name == "-"]
+    #     self.assertEqual(len(sub_list_dash_genes), 0)
+    #
+    #     # print("Length of filtered affi contig file:")
+    #     # print(len(self.vs_stats.all_affi_data))
 
-        self.assertEqual(len(sub_list_empty_genes), 0)
-
-        sub_list_dash_genes = self.vs_stats.all_affi_data[self.vs_stats.all_affi_data.gene_name == "-"]
-        self.assertEqual(len(sub_list_dash_genes), 0)
-
-        # print("Length of filtered affi contig file:")
-        # print(len(self.vs_stats.all_affi_data))
-
-    #this method probably is going to confuse?
-    #because we are not looking at the shared genes here
-    #TODO: remove this test
-    def test_top_gene_is_individual_gene(self):
-        self.log_start()
-
-        best_gene = self.vs_stats.all_gene_counts().index[0]
-
-        logging.info("The most abundant gene in all contigs (not just phages)")
-        logging.info(best_gene)
-
-        self.assertEqual(best_gene.find("gi_"), 0)
+    # #this method probably is going to confuse?
+    # #because we are not looking at the shared genes here
+    # #TODO: remove this test
+    # def test_top_gene_is_individual_gene(self):
+    #     self.log_start()
+    #
+    #     best_gene = self.vs_stats.all_gene_counts().index[0]
+    #
+    #     logging.info("The most abundant gene in all contigs (not just phages)")
+    #     logging.info(best_gene)
+    #
+    #     self.assertEqual(best_gene.find("gi_"), 0)
 
     def test_convert_gene_id_to_contig_id(self):
         self.log_start()
@@ -95,7 +95,7 @@ class VirsorterStatsTest(MyTestCase):
         self.log_start()
 
         gene_id = "VIRSorter_PQXB01000001___PQXB01000001_1___[ANME-1_cluster_archaeon_strain_G37ANME1___2056316_3]-gene_8"
-        gene_nr = "8"
+        gene_nr = 8
         self.assertEqual(self.vs_stats.gene_to_nr(gene_id), gene_nr)
 
     def test_phage_affi_data_columns_contains_essential_fields(self):
