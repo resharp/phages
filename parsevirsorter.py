@@ -48,12 +48,16 @@ ID = uuid4()
 log("[INFO] Program %s started" % ID)
 
 
+# this file parses 1 [...]_VIRSorter_mga_final.predict file
+# to extract
+# and returns them
 def parse_predict_file(predict_file):
     # keys are contigs, list of all genes with a tuple(min, max)
     contig_genes = defaultdict(list)
     contig = None
     prog = re.compile(r"(\d+)")
     do_first_check = None
+
     with open(predict_file) as f:
         for line in f:
             if line.startswith(">"):
@@ -91,17 +95,24 @@ def parse_predict_file(predict_file):
             if len(args) < 3:
                 log("[WARNING] Something wrong with args:", predict_file)
                 continue
+
             args = [args[1], args[2], args[-2], args[-3]]
+
             args = list(
                 map(lambda d: int(d.group(1)), filter(bool, map(prog.match, args)))
             )
             contig_genes[contig].append((min(args), max(args)))
+
     return contig_genes
 
 
 prog = re.compile(r"gene_(\d+)-gene_(\d+)")
+
 for line in fileinput.input(args.inputfiles):
+
     if fileinput.isfirstline():
+
+        #here the name of the predict file is derived from the input filename
         path_name = fileinput.filename()
         genome = os.path.basename(path_name).rstrip(csv_ext)
         directory = os.path.dirname(path_name)
@@ -126,44 +137,54 @@ for line in fileinput.input(args.inputfiles):
         if c != "C" and c in map(str, range(7)):
             cat = c
         continue
-    s = sys.maxsize
-    e = 0
+
+    gene_start = sys.maxsize
+    gene_end = 0
+
     contig = line.split("___", maxsplit=1)[0]
     contig = contig.split("_", maxsplit=1)[1]
+
     for group in prog.finditer(line):
         s_pot = int(group.group(1))
         e_pot = int(group.group(2))
         if s_pot > e_pot:
             s_pot, e_pot = e_pot, s_pot
-        s = min(s, s_pot)
-        e = max(e, e_pot)
-    if s == sys.maxsize or e == 0:
+
+        gene_start = min(gene_start, s_pot)
+        gene_end = max(gene_end, e_pot)
+
+    if gene_start == sys.maxsize or gene_end == 0:
+
         if cat in map(str, range(4)):
             # Just the whole contig.
             out(genome, contig, cat, *4 * ("NA",))
             continue
         log("[WARNING] Cannot parse", line.strip(), genome)
         continue
+
     contig_genes_list = contig_genes.get(contig)
+
     if not contig_genes_list:
         log("[WARNING] Cannot find contig:", contig, genome)
         continue
-    if s == 0:
-        s = 1
+
+    if gene_start == 0:
+        gene_start = 1
+
     coords_contig_genes = contig_genes[contig]
 
     length = len(coords_contig_genes) - 1
-    if e >= length:
-        e = length
+    if gene_end >= length:
+        gene_end = length
     else:
-        e += 1
+        gene_end += 1
 
-    c_s = coords_contig_genes[s][0]  # 0 is minimum
-    c_e = coords_contig_genes[e][1]  # 1 is maximum
+    nucl_start = coords_contig_genes[gene_start][0]  # 0 is minimum
+    nucl_end = coords_contig_genes[gene_end][1]  # 1 is maximum
 
     if not cat:
         log("[WARNING] Cannot find cat:", line.trim(), genome)
         cat = "NULL"
-    #        print(f'{c_s},{c_e},{s},{e}')
-    out(genome, contig, cat, c_s, c_e, s, e)
+    #        print(f'{nucl_start},{nucl_end},{gene_start},{gene_end}')
+    out(genome, contig, cat, nucl_start, nucl_end, gene_start, gene_end)
 log("[INFO] Program %s finished" % ID)
