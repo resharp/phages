@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import logging
 
 # we would like to generate a list of [PH + PC] from [PH + IP]
@@ -7,6 +8,10 @@ import logging
 # then we would like to generate the shared PC content of all the combinations of phages
 # in order to feed this into mcl
 # the weight on each edge (connection between two phages) will be the number of shared genes
+
+# TODO change to Linux location of
+# * *  *   *    *     *      *
+mydir = "D:\\17 Dutihl Lab\\_tools\mcl"
 
 class PhageSharedContent:
 
@@ -29,6 +34,13 @@ class PhageSharedContent:
         self.ip_pc_table_name = mydir + "\\ip_pc_table.mcl_75.I20"
         self.phage_pc_table_name = mydir + "\\phage_pc_table.txt"
         self.shared_gene_content_name = mydir + "\\shared_gene_content.mcl_75.I20.txt"
+
+        if not os.path.isdir(mydir):
+            #switch to linux style
+            self.phage_ip_table_name = mydir + "/phage_ip_table.txt"
+            self.ip_pc_table_name = mydir + "/ip_pc_table.mcl_75.I20"
+            self.phage_pc_table_name = mydir + "/phage_pc_table.txt"
+            self.shared_gene_content_name = mydir + "/shared_gene_content.mcl_75.I20.txt"
 
     def print_file_names(self):
 
@@ -116,7 +128,7 @@ class PhageSharedContent:
             f.write("{} {} {}\n".format(k[0], k[1], v))
         f.close()
 
-ph_content = PhageSharedContent("D:\\17 Dutihl Lab\\_tools\mcl")
+ph_content = PhageSharedContent(mydir)
 
 ph_content.print_file_names()
 
