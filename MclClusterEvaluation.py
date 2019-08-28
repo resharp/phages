@@ -135,10 +135,8 @@ class MclClusterEvaluation:
 
 
         false_positives = merge_df[merge_df.isnull().ip_cluster]
-        index_nc_1 = false_positives.index[0]
 
         true_positives = merge_df[merge_df.ip_cluster.notnull()]
-        index_tc_1 = true_positives.index[-1]
 
         tot_cl_ips = str(len(self.ip_df))
         tot_hits = str(len(merge_df))
@@ -146,18 +144,39 @@ class MclClusterEvaluation:
         nr_tp = str(len(true_positives))
 
         high_bitscore = str(merge_df.iloc[0].bitscore)
-        nc_bitscore = str(merge_df.iloc[index_nc_1].bitscore)
-        nc_loc = str(index_nc_1 + 1)
-        nc_ip = str(false_positives.iloc[0].ip_hit)
 
-        #trusted cutoff
-        tc_bitscore = str(merge_df.iloc[index_tc_1].bitscore)
-        tc_loc = str(index_tc_1 + 1)
-        tc_ip = true_positives.iloc[-1].ip_hit
+        #noise cutoff, only if false positives exist
+        if len(false_positives) > 0:
+                index_nc_1 = false_positives.index[0]
+
+                nc_bitscore = str(merge_df.iloc[index_nc_1].bitscore)
+                nc_loc = str(index_nc_1 + 1)
+                nc_ip = str(false_positives.iloc[0].ip_hit)
+        else:
+                nc_bitscore = "-"
+                nc_loc = "-"
+                nc_ip = "-"
+
+        #trusted cutoff, only if true positives exist
+        if len(true_positives) > 0:
+
+                index_tc_1 = true_positives.index[-1]
+
+                tc_bitscore = str(merge_df.iloc[index_tc_1].bitscore)
+                tc_loc = str(index_tc_1 + 1)
+                tc_ip = true_positives.iloc[-1].ip_hit
+        else:
+                tc_bitscore = "-"
+                tc_loc = "-"
+                tc_ip = "-"
 
         #width between nc and tc
-        width_tc_nc = str(index_tc_1 - index_nc_1)
-        width_tc_nc_score = str(merge_df.iloc[index_nc_1].bitscore - merge_df.iloc[index_tc_1].bitscore)
+        if len(true_positives) > 0 and len(false_positives) > 0:
+                width_tc_nc = str(index_tc_1 - index_nc_1)
+                width_tc_nc_score = str(merge_df.iloc[index_nc_1].bitscore - merge_df.iloc[index_tc_1].bitscore)
+        else:
+                width_tc_nc = "-"
+                width_tc_nc_score = "-"
 
         self.mcl_eval_out_file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
                                     pc_id, tot_cl_ips, tot_hits, nr_tp, nr_fp
