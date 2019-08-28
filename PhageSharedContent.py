@@ -11,7 +11,7 @@ import logging
 
 # TODO change to Linux location of
 # * *  *   *    *     *      *
-mydir = "D:\\17 Dutihl Lab\\_tools\mcl"
+mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
 
 class PhageSharedContent:
 
@@ -30,17 +30,15 @@ class PhageSharedContent:
         logging.basicConfig(filename='PhageSharedContent.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.DEBUG)
 
-        self.phage_ip_table_name = mydir + "\\phage_ip_table.txt"
-        self.ip_pc_table_name = mydir + "\\ip_pc_table.mcl_75.I20"
-        self.phage_pc_table_name = mydir + "\\phage_pc_table.txt"
-        self.shared_gene_content_name = mydir + "\\shared_gene_content.mcl_75.I20.txt"
+        #self.phage_ip_table_name = mydir + "\\phage_ip_table.txt"
+        #self.ip_pc_table_name = mydir + "\\ip_pc_table.mcl_75.I20"
+        #self.phage_pc_table_name = mydir + "\\phage_pc_table.txt"
+        #self.shared_gene_content_name = mydir + "\\shared_gene_content.mcl_75.I20.txt"
 
-        if not os.path.isdir(mydir):
-            #switch to linux style
-            self.phage_ip_table_name = mydir + "/phage_ip_table.txt"
-            self.ip_pc_table_name = mydir + "/ip_pc_table.mcl_75.I20"
-            self.phage_pc_table_name = mydir + "/phage_pc_table.txt"
-            self.shared_gene_content_name = mydir + "/shared_gene_content.mcl_75.I20.txt"
+        self.phage_ip_table_name = mydir + "/phage_ip_table.txt"
+        self.ip_pc_table_name = mydir + "/ip_pc_table.mcl_75.I20"
+        self.phage_pc_table_name = mydir + "/phage_pc_table.txt"
+        self.shared_gene_content_name = mydir + "/shared_gene_content.mcl_75.I20.txt"
 
     def print_file_names(self):
 
@@ -108,7 +106,7 @@ class PhageSharedContent:
             index = pd.MultiIndex.from_product([phage_df, phage_df], names = ["phage_1", "phage_2"])
 
             phage_phage_df = pd.DataFrame(index = index).reset_index()
-            print('calculating for protein cluster: ' + pc_id + ' shared by ' + len(phage_df) + ' phages.')
+            print('calculating for protein cluster: ' + str(pc_id) + ' shared by ' + str(len(phage_df)) + ' phages.')
             print(len(phage_phage_df))
 
             for index, row in phage_phage_df.iterrows():

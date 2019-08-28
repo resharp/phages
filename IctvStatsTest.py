@@ -6,7 +6,7 @@ from IctvStats import IctvStats
 #TODO show how to run test suites
 class IctvStatsTest(unittest.TestCase) :
 
-    mydir = "D:\\17 Dutihl Lab\\source\\phages_pycharm\\"
+    mydir = "~/source/phages/"
 
     ictv_stats = IctvStats(mydir)
 
