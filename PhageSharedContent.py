@@ -37,7 +37,7 @@ class PhageSharedContent:
 
         self.phage_ip_table_name = mydir + "/phage_ip_table.txt"
         self.ip_pc_table_name = mydir + "/ip_pc_table.mcl_75.I20"
-        self.phage_pc_table_name = mydir + "/phage_pc_table.txt"
+        self.phage_pc_table_name = mydir + "/phage_pc_table.mcl_75.I20.txt"
         self.shared_gene_content_name = mydir + "/shared_gene_content.mcl_75.I20.txt"
 
     def print_file_names(self):
