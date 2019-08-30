@@ -75,15 +75,15 @@ class MclClusterEvaluation:
 
         self.mcl_eval_out_file = open(self.out_mcl_eval_name, "w+")
 
-        self.mcl_eval_out_file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                                    "pc_id", "tot_cl_ips", "tot_hits", "nr_tp", "nr_fp"
+        self.mcl_eval_out_file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                                    "pc_id", "max_f1_score", "tot_cl_ips", "tot_hits", "nr_tp", "nr_fp"
                                     , "high_bitscore"
                                     , "nc_bitscore", "nc_loc", "nc_ip"
                                     , "tc_bitscore", "tc_loc", "tc_ip"
-                                    , "width_tc_nc", "width_tc_nc_score" ))
+                                    , "width_tc_nc", "width_tc_nc_score"))
 
         #TODO: use head if you want to process only a subset of top clusters
-        # self.pc_df = self.pc_df.head(5)
+        #self.pc_df = self.pc_df.head(5)
 
         for index, row in self.pc_df.iterrows():
             pc_id = row.pc_id
@@ -93,6 +93,9 @@ class MclClusterEvaluation:
 
         self.mcl_eval_out_file.close()
 
+    # added scores for recall, precision, and f1_score and calculate max f1_score for each PC
+    # recall = sum_tps/tot_tps
+    # precision = sum_tps/sum_hits
     def eval_cluster(self, pc_id):
 
         pc_dir = self.extension
@@ -138,10 +141,32 @@ class MclClusterEvaluation:
 
         true_positives = merge_df[merge_df.ip_cluster.notnull()]
 
+        total_tps = len(true_positives)
+        sum_tps = 0
+
+        f1_scores = []
+        for index, row in merge_df.iterrows():
+
+            sum_hits = index + 1
+            if str(row.ip_cluster) != "nan":
+                sum_tps += 1
+
+            recall = sum_tps / total_tps
+            precision = sum_tps / sum_hits
+
+            if recall + precision > 0:
+                f1_score = 2 * recall * precision / (recall + precision)
+            else:
+                f1_score = 0
+
+            f1_scores += [f1_score]
+
+        max_f1_score = max(f1_scores)
+
         tot_cl_ips = str(len(self.ip_df))
         tot_hits = str(len(merge_df))
         nr_fp = str(len(false_positives))
-        nr_tp = str(len(true_positives))
+        nr_tp = str(total_tps)
 
         high_bitscore = str(merge_df.iloc[0].bitscore)
 
@@ -178,8 +203,8 @@ class MclClusterEvaluation:
                 width_tc_nc = "-"
                 width_tc_nc_score = "-"
 
-        self.mcl_eval_out_file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                                    pc_id, tot_cl_ips, tot_hits, nr_tp, nr_fp
+        self.mcl_eval_out_file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                                    pc_id, max_f1_score, tot_cl_ips, tot_hits, nr_tp, nr_fp
                                     , high_bitscore
                                     , nc_bitscore, nc_loc, nc_ip
                                     , tc_bitscore, tc_loc, tc_ip
