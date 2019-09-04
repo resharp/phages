@@ -9,9 +9,12 @@ import logging
 # in order to feed this into mcl
 # the weight on each edge (connection between two phages) will be the number of shared genes
 
-# TODO change to Linux location of
-# * *  *   *    *     *      *
-mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
+if os.name == "nt":
+    mydir = r"D:\17 Dutihl Lab\_tools\mcl\1000"
+else:
+    mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
+
+extension = "mcl_75.I25"
 
 class PhageSharedContent:
 
@@ -19,26 +22,33 @@ class PhageSharedContent:
     ip_pc_table_name = ""    #specific mcl result (clustering of IPs into PCs)
     phage_pc_table_name = ""
     shared_gene_content_name = ""
+    pc_table_name = ""
 
     phage_ip_table = None
     ip_pc_table = None
     phage_pc_table = None
+    pc_df = None
 
-
-    def __init__(self, mydir):
+    def __init__(self, mydir, extension):
 
         logging.basicConfig(filename='PhageSharedContent.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.DEBUG)
 
-        #self.phage_ip_table_name = mydir + "\\phage_ip_table.txt"
-        #self.ip_pc_table_name = mydir + "\\ip_pc_table.mcl_75.I20"
-        #self.phage_pc_table_name = mydir + "\\phage_pc_table.txt"
-        #self.shared_gene_content_name = mydir + "\\shared_gene_content.mcl_75.I20.txt"
+        if os.name == 'nt':
+            dir_sep = "\\"
+        else:
+            dir_sep = "/"
 
-        self.phage_ip_table_name = mydir + "/phage_ip_table.txt"
-        self.ip_pc_table_name = mydir + "/ip_pc_table.mcl_75.I20"
-        self.phage_pc_table_name = mydir + "/phage_pc_table.mcl_75.I20.txt"
-        self.shared_gene_content_name = mydir + "/shared_gene_content.mcl_75.I20.txt"
+        #TODO: move file names to beginning of python script
+        self.phage_ip_table_name = mydir + dir_sep + "phage_ip_table_short.txt"
+
+        self.ip_pc_table_name = mydir + dir_sep + "ip_pc_table." + extension + ".filter_100"
+        self.pc_table_name = mydir + dir_sep + "pc_table." + extension + ".filter_100"
+
+        #output:
+        self.phage_pc_table_name = mydir + dir_sep + "phage_pc_table." + extension + ".txt"
+        self.shared_gene_content_name = mydir + dir_sep + "shared_gene_content." + extension + ".txt"
+
 
     def print_file_names(self):
 
@@ -53,19 +63,27 @@ class PhageSharedContent:
         logging.debug("start reading tables")
         self.read_phage_ip_table()
         self.read_ip_pc_table()
+        self.read_pc_table()
         logging.debug("finished reading tables")
 
     def read_phage_ip_table(self):
         self.phage_ip_table = pd.read_csv(self.phage_ip_table_name, delimiter=" ",
                                          header=None
-                                         , usecols=[0, 1, 2]
-                                         , names=['phage_id', 'ip_id', 'phage_name'])
+                                         , usecols=[0, 1]
+                                         , names=['phage_id', 'ip_id'])
 
     def read_ip_pc_table(self):
-        self.ip_pc_table = pd.read_csv(self.ip_pc_table_name, delimiter=" ",
-                                         header=None
+        self.ip_pc_table = pd.read_csv(self.ip_pc_table_name
+                                         , delim_whitespace=True
+                                         , header=None
                                          , usecols=[0, 1]
                                          , names=['ip_id', 'pc_id'])
+
+    def read_pc_table(self):
+        self.pc_df = pd.read_csv(self.pc_table_name, delimiter=" ",
+                                 header=None
+                                 , usecols=[0]
+                                 , names=['pc_id'])
 
     def merge(self):
         self.phage_pc_table = self.phage_ip_table.merge(self.ip_pc_table
@@ -91,10 +109,7 @@ class PhageSharedContent:
         #     ['pc_count'], ascending=[0])
 
         #now loop through all clusters
-
-        pc_df = self.ip_pc_table.groupby(['pc_id']).size().reset_index().sort_values("pc_id")
-
-        for index, row in pc_df[['pc_id']].iterrows():
+        for index, row in self.pc_df.iterrows():
             pc_id = row["pc_id"]
             # with this pc_id make temporary dataframe filtered from phage content
 
@@ -126,7 +141,7 @@ class PhageSharedContent:
             f.write("{} {} {}\n".format(k[0], k[1], v))
         f.close()
 
-ph_content = PhageSharedContent(mydir)
+ph_content = PhageSharedContent(mydir, extension)
 
 ph_content.print_file_names()
 
