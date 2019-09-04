@@ -6,8 +6,13 @@ import logging
 # based on clustering of IPs (individual proteins) into PCs (protein clusters)
 
 # then we would like to generate the shared PC content of all the combinations of phages
-# in order to feed this into mcl
-# the weight on each edge (connection between two phages) will be the number of shared genes
+# in order to
+# (A) feed this into mcl
+#     the weight on each edge (connection between two phages) will be the number of shared genes
+# (B) try to find a large group of phages with a minimum number of shared genes
+#     therefore we would like to filter: what phages contain at least [min_nr_of_genes] with other phages
+#
+
 
 if os.name == "nt":
     mydir = r"D:\17 Dutihl Lab\_tools\mcl\1000"
@@ -22,12 +27,14 @@ class PhageSharedContent:
     ip_pc_table_name = ""    #specific mcl result (clustering of IPs into PCs)
     phage_pc_table_name = ""
     shared_gene_content_name = ""
+    shared_phage_content_name = ""
     pc_table_name = ""
 
     phage_ip_table = None
     ip_pc_table = None
     phage_pc_table = None
     pc_df = None
+    shared_pcs_df = None
 
     def __init__(self, mydir, extension):
 
@@ -43,12 +50,15 @@ class PhageSharedContent:
         self.phage_ip_table_name = mydir + dir_sep + "phage_ip_table_short.txt"
 
         self.ip_pc_table_name = mydir + dir_sep + "ip_pc_table." + extension + ".filter_100"
+
+        # TODO: change
         self.pc_table_name = mydir + dir_sep + "pc_table." + extension + ".filter_100"
+        # self.pc_table_name = mydir + dir_sep + "pc_table." + extension + ".filter_100.for_testing"
 
         #output:
         self.phage_pc_table_name = mydir + dir_sep + "phage_pc_table." + extension + ".txt"
         self.shared_gene_content_name = mydir + dir_sep + "shared_gene_content." + extension + ".txt"
-
+        self.shared_phage_content_name = mydir + dir_sep + "shared_phage_content." + extension + ".txt"
 
     def print_file_names(self):
 
@@ -57,6 +67,7 @@ class PhageSharedContent:
         print(self.ip_pc_table_name)
         print("Results will be put in:")
         print(self.shared_gene_content_name)
+        print(self.shared_phage_content_name)
 
     def read_files(self):
 
@@ -67,8 +78,8 @@ class PhageSharedContent:
         logging.debug("finished reading tables")
 
     def read_phage_ip_table(self):
-        self.phage_ip_table = pd.read_csv(self.phage_ip_table_name, delimiter=" ",
-                                         header=None
+        self.phage_ip_table = pd.read_csv(self.phage_ip_table_name, delimiter=" "
+                                         , header=None
                                          , usecols=[0, 1]
                                          , names=['phage_id', 'ip_id'])
 
@@ -80,8 +91,8 @@ class PhageSharedContent:
                                          , names=['ip_id', 'pc_id'])
 
     def read_pc_table(self):
-        self.pc_df = pd.read_csv(self.pc_table_name, delimiter=" ",
-                                 header=None
+        self.pc_df = pd.read_csv(self.pc_table_name, delimiter=" "
+                                 , header=None
                                  , usecols=[0]
                                  , names=['pc_id'])
 
@@ -136,10 +147,30 @@ class PhageSharedContent:
                         shared_pc_content[key] = 1
 
         #now save the shared gene content to file
-        f = open(self.shared_gene_content_name, "w+")
+        rows_list = []
+
         for k, v in shared_pc_content.items():
-            f.write("{} {} {}\n".format(k[0], k[1], v))
-        f.close()
+            rows_list.append([k[0], k[1], v])
+        self.shared_pcs_df = pd.DataFrame(rows_list, columns=["phage_1", "phage_2", "count"])
+
+        self.shared_pcs_df.to_csv(path_or_buf=self.shared_gene_content_name
+                                  , index=False, header=None)
+
+
+    def print_statistics_of_gene_content(self):
+
+        # we would like to filter: what phages contain at least [min_nr_of_genes] with other phages
+        for min_nr_of_genes in range(2,100):
+
+            #note: divide by two because of double (reversed) entries
+            nr_phages = int(len(self.shared_pcs_df[self.shared_pcs_df["count"] > min_nr_of_genes - 1] ) / 2)
+
+            log_line = "number of phage combinations sharing {} genes or more: {}".format(min_nr_of_genes, nr_phages)
+            logging.debug(log_line)
+            print(log_line)
+
+            if nr_phages == 0:
+                break
 
 ph_content = PhageSharedContent(mydir, extension)
 
@@ -151,4 +182,5 @@ ph_content.merge()
 
 ph_content.calc_shared_gene_content()
 
+ph_content.print_statistics_of_gene_content()
 
