@@ -83,7 +83,7 @@ class PhageContentPlots:
             dir_sep = "\\"
         else:
             dir_sep = "/"
-        figure_name = "{}{}ph_plots.pc_distribution.min_{}.{}.png".format(self.mydir, dir_sep, min_ips_in_pcs, self.extension)
+        figure_name = "{}{}ph_plots.pc_distribution.min_{}.{}.pdf".format(self.mydir, dir_sep, min_ips_in_pcs, self.extension)
         plt.savefig(figure_name)
 
 ph_plots = PhageContentPlots(mydir, extension)
