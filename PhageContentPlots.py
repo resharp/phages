@@ -62,16 +62,18 @@ class PhageContentPlots:
 
         data = data["ip_id_Count"].values.tolist()
 
-        min_ips_in_pcs = 100
         max_ips_in_pcs = max_size
 
-        self.make_pc_dis_with_cutoff(data, 2, max_ips_in_pcs)
-        self.make_pc_dis_with_cutoff(data, min_ips_in_pcs, max_ips_in_pcs)
+        self.make_pc_dis_with_cutoff(data, 2, max_ips_in_pcs + 100)
+        self.make_pc_dis_with_cutoff(data, 100, max_ips_in_pcs + 100)
+        self.make_pc_dis_with_cutoff(data, 300, max_ips_in_pcs + 100)
+        if max_ips_in_pcs > 1000:
+            self.make_pc_dis_with_cutoff(data, 1000, max_ips_in_pcs + 100)
 
     def make_pc_dis_with_cutoff(self, data, min_ips_in_pcs, max_ips_in_pcs):
 
         plt.clf()
-        plt.hist(data, bins=range(min_ips_in_pcs, max_ips_in_pcs))
+        plt.hist(data, bins=range(min_ips_in_pcs, max_ips_in_pcs, 1))
         plt.xlabel("nr. of proteins in cluster")
         plt.ylabel("frequency")
         plt.title("Occurence of protein cluster sizes for {}\n "
