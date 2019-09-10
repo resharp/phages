@@ -40,18 +40,21 @@ class PhageSharedContent:
     phage_pc_table_name_filtered = ""
 
     shared_pc_content_name = ""
+    shared_pc_measures_name = ""
     shared_phage_content_name = ""
     pc_table_name = ""
     phage_table_name = ""
     phage_table_name_filtered = ""
 
     phage_ip_table = None
+    phage_ip_counts_df = None
     ip_pc_table = None
     phage_pc_table = None
     phage_pc_table_filtered = None
 
     pc_df = None
     shared_pcs_df = None
+    shared_pcs_measures_df = None
     phage_df = None
     phage_df_filtered = None
 
@@ -85,6 +88,8 @@ class PhageSharedContent:
         self.phage_pc_table_name_filtered = mydir + dir_sep + "phage_pc_table.sharing_{}." + extension + ".txt"
 
         self.shared_pc_content_name = mydir + dir_sep + "shared_gene_content." + extension + ".txt"
+        self.shared_pc_measures_name = mydir + dir_sep + "shared_pc_measures." + extension + ".txt"
+
         self.shared_phage_content_name = mydir + dir_sep + "shared_phage_content." + extension + ".txt"
 
 
@@ -157,7 +162,10 @@ class PhageSharedContent:
             pc_id = row["pc_id"]
             # with this pc_id make temporary dataframe filtered from phage content
 
-            phage_df = self.phage_pc_table[ self.phage_pc_table.pc_id == pc_id]["phage_id"]
+            #TODO either
+            #  Fix bug to ignore double entries
+            # OR ignore these PCs (or phages?)
+            phage_df = self.phage_pc_table[ self.phage_pc_table.pc_id == pc_id]["phage_id"].unique()
 
             index = pd.MultiIndex.from_product([phage_df, phage_df], names = ["phage_1", "phage_2"])
 
@@ -241,7 +249,7 @@ class PhageSharedContent:
 
     def read_shared_pc_content(self):
         self.shared_pcs_df = pd.read_csv(self.shared_pc_content_name
-                                         , delim_whitespace=True
+                                         , delimiter=","
                                          , header=None
                                          , usecols=[0,1,2]
                                          , names=["phage_1", "phage_2", "count"])
@@ -307,8 +315,43 @@ class PhageSharedContent:
         print("length of phage pc table after filter")
         print(len(self.phage_pc_table_filtered))
 
-        dummy = "true"
+    def calc_shared_pc_measures(self):
 
+        #now calculate phage_ip_counts from phage_ip_table
+
+        self.phage_ip_counts_df = self.phage_ip_table.groupby(["phage_id"]).count().add_suffix('_Count').reset_index()
+        #count column will be ip_id_Count
+
+        #optional: write phage_ip_counts
+
+        #join shared_pcs_df on phage_1 column
+        self.shared_pcs_measures_df = self.shared_pcs_df.merge(self.phage_ip_counts_df
+                                 , left_on=self.shared_pcs_df.phage_1
+                                 , right_on=self.phage_ip_counts_df.phage_id
+                                 , how='inner')
+        self.shared_pcs_measures_df.rename(columns={'ip_id_Count':'phage_1_ip_count'}, inplace=True)
+        self.shared_pcs_measures_df = self.shared_pcs_measures_df[['phage_1','phage_2','count','phage_1_ip_count']]
+
+        #join shared_pcs_df on phage_2 column
+
+        self.shared_pcs_measures_df = self.shared_pcs_measures_df.merge(self.phage_ip_counts_df
+                                 , left_on=self.shared_pcs_measures_df.phage_2
+                                 , right_on=self.phage_ip_counts_df.phage_id
+                                 , how='inner')
+        self.shared_pcs_measures_df.rename(columns={'ip_id_Count':'phage_2_ip_count'}, inplace=True)
+
+        self.shared_pcs_measures_df = self.shared_pcs_measures_df[['phage_1','phage_2','count','phage_1_ip_count','phage_2_ip_count']]
+
+        #add extra column for computation of Jaccard similarity score (use apply)
+        self.shared_pcs_measures_df['jaccard_index'] = self.shared_pcs_measures_df['count'] / \
+                                                        (self.shared_pcs_measures_df['phage_1_ip_count'] +\
+                                                        self.shared_pcs_measures_df['phage_2_ip_count'] -\
+                                                        self.shared_pcs_measures_df['count'])
+
+        self.shared_pcs_measures_df = self.shared_pcs_measures_df.sort_values(['jaccard_index'], ascending=[0])
+
+        #write shared_pcs_measures
+        self.shared_pcs_measures_df.to_csv(path_or_buf=self.shared_pc_measures_name, index=False)
 
 ph_content = PhageSharedContent(mydir, extension, min_nr_of_phages)
 
@@ -328,6 +371,8 @@ ph_content.print_statistics_of_gene_content()
 
 for i in range(1,2):
     ph_content.determine_largest_cluster_sharing_n_pcs(i)
+
+ph_content.calc_shared_pc_measures()
 
 #ph_content.filter_on_thresholds()
 

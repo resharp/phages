@@ -15,13 +15,14 @@ if os.name == "nt":
 else:
     mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
 
-extension = "mcl_75.I25" # extension for mcl ip clustering
+extension = "mcl_75.I20" # extension for mcl ip clustering
 extension2 = "I25" # extension for mcl phage clustering
 
 class PhageContentPlots:
 
     extension = ""
     mydir = ""
+    dir_sep = ""
 
     ip_pc_table_name = ""    #specific mcl result (clustering of IPs into PCs)
     # ip_pc_table.mcl_75.I20
@@ -32,8 +33,11 @@ class PhageContentPlots:
 
     phage_ip_table_name = "" #the file with the individual proteins per phage
 
+    shared_pc_measures_name = ""
+
     ip_pc_table = None
     phage_ip_table = None
+    shared_pcs_measures_df = None
 
     def __init__(self, mydir, extension):
 
@@ -41,13 +45,15 @@ class PhageContentPlots:
         self.extension = extension
 
         if os.name == 'nt':
-            dir_sep = "\\"
+            self.dir_sep = "\\"
         else:
-            dir_sep = "/"
+            self.dir_sep = "/"
 
-        self.ip_pc_table_name = mydir + dir_sep + "ip_pc_table." + extension
-        self.phage_ip_table_name = mydir + dir_sep + "phage_ip_table_short.txt"
-        # self.phc_ph_table_name = mydir + dir_sep + "[TODO]." + extension
+        self.ip_pc_table_name = mydir + self.dir_sep + "ip_pc_table." + extension
+        self.phage_ip_table_name = mydir + self.dir_sep + "phage_ip_table_short.txt"
+        # self.phc_ph_table_name = mydir + self.dir_sep + "[TODO]." + extension
+        self.shared_pc_measures_name = mydir + self.dir_sep + "shared_pc_measures." + extension + ".txt"
+
 
     def read_ip_pc_table(self):
         self.ip_pc_table = pd.read_csv(self.ip_pc_table_name
@@ -62,6 +68,13 @@ class PhageContentPlots:
                                           , header=None
                                           , usecols=[0,1]
                                           , names=['phage_id', 'ip_id'])
+    def read_shared_pc_measures(self):
+        self.shared_pcs_measures_df= pd.read_csv(self.shared_pc_measures_name
+                                        ,delimiter=","
+                                        ,usecols=[0,1,2,3,4,5]
+                                        ,dtype={"jaccard_index" : "float64"})
+
+        dummy = "true"
 
     def make_pc_distribution(self):
         self.read_ip_pc_table()
@@ -88,11 +101,8 @@ class PhageContentPlots:
         plt.ylabel("frequency")
         plt.title("Occurence of protein cluster sizes for {}\n "
                   "minimum ips in pc set at: {}".format(self.extension, min_ips_in_pcs))
-        if os.name == 'nt':
-            dir_sep = "\\"
-        else:
-            dir_sep = "/"
-        figure_name = "{}{}ph_plots.pc_distribution.min_{}.{}.pdf".format(self.mydir, dir_sep, min_ips_in_pcs, self.extension)
+
+        figure_name = "{}{}ph_plots.pc_distribution.min_{}.{}.pdf".format(self.mydir, self.dir_sep, min_ips_in_pcs, self.extension)
         plt.savefig(figure_name)
 
     def make_phage_distribution(self):
@@ -112,17 +122,33 @@ class PhageContentPlots:
         plt.xlabel("nr. of ips (proteins) in (pro)phage")
         plt.ylabel("frequency")
         plt.title("Distribution of number of proteins in predicted phages.")
-        if os.name == 'nt':
-            dir_sep = "\\"
-        else:
-            dir_sep = "/"
-        figure_name = "{}{}ph_plots.phage_distribution.{}.pdf".format(self.mydir, dir_sep, self.extension)
+
+        figure_name = "{}{}ph_plots.phage_distribution.{}.pdf".format(self.mydir, self.dir_sep, self.extension)
         plt.savefig(figure_name)
         # plt.show()
 
+    def make_jaccard_distribution(self):
+
+        ph_plots.read_shared_pc_measures()
+        data = self.shared_pcs_measures_df
+
+        data = data['jaccard_index'].values.tolist()
+
+        plt.xlabel("Jaccard similarity coefficient")
+        plt.ylabel("log10 scale of frequency")
+        plt.title("Distribution of pairwise similarities of phages for {}".format(self.extension))
+
+        plt.hist(data, log=True, bins=[ i/200 for i in range(1,201)])
+
+        figure_name = "{}{}ph_plots.jaccard_distribution.{}.pdf".format(self.mydir, self.dir_sep, self.extension)
+        plt.savefig(figure_name)
+
+
 ph_plots = PhageContentPlots(mydir, extension)
 
-ph_plots.make_pc_distribution()
+#ph_plots.make_pc_distribution()
 
 #TODO: also make a distribution of the number of pcs that are in the phages (because not all ips are in cps)
-ph_plots.make_phage_distribution()
+#ph_plots.make_phage_distribution()
+
+ph_plots.make_jaccard_distribution()
