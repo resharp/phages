@@ -15,7 +15,7 @@ if os.name == "nt":
 else:
     mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
 
-extension = "mcl_75.I20" # extension for mcl ip clustering
+extension = "mcl_75.I25" # extension for mcl ip clustering
 extension2 = "I25" # extension for mcl phage clustering
 
 class PhageContentPlots:
@@ -88,15 +88,11 @@ class PhageContentPlots:
         max_ips_in_pcs = max_size
 
         self.make_pc_dis_with_cutoff(data, 2, max_ips_in_pcs + 100)
-        self.make_pc_dis_with_cutoff(data, 100, max_ips_in_pcs + 100)
-        self.make_pc_dis_with_cutoff(data, 300, max_ips_in_pcs + 100)
-        if max_ips_in_pcs > 1000:
-            self.make_pc_dis_with_cutoff(data, 1000, max_ips_in_pcs + 100)
 
     def make_pc_dis_with_cutoff(self, data, min_ips_in_pcs, max_ips_in_pcs):
 
         plt.clf()
-        plt.hist(data, bins=range(min_ips_in_pcs, max_ips_in_pcs, 1))
+        plt.hist(data, bins=range(min_ips_in_pcs, max_ips_in_pcs, 1), log=True)
         plt.xlabel("nr. of proteins in cluster")
         plt.ylabel("frequency")
         plt.title("Occurence of protein cluster sizes for {}\n "
@@ -123,7 +119,7 @@ class PhageContentPlots:
         plt.ylabel("frequency")
         plt.title("Distribution of number of proteins in predicted phages.")
 
-        figure_name = "{}{}ph_plots.phage_distribution.{}.pdf".format(self.mydir, self.dir_sep, self.extension)
+        figure_name = "{}{}ph_plots.phage_distribution.pdf".format(self.mydir, self.dir_sep)
         plt.savefig(figure_name)
         # plt.show()
 
@@ -134,6 +130,7 @@ class PhageContentPlots:
 
         data = data['jaccard_index'].values.tolist()
 
+        plt.clf()
         plt.xlabel("Jaccard similarity coefficient")
         plt.ylabel("log10 scale of frequency")
         plt.title("Distribution of pairwise similarities of phages for {}".format(self.extension))
@@ -146,9 +143,9 @@ class PhageContentPlots:
 
 ph_plots = PhageContentPlots(mydir, extension)
 
-#ph_plots.make_pc_distribution()
+ph_plots.make_pc_distribution()
 
 #TODO: also make a distribution of the number of pcs that are in the phages (because not all ips are in cps)
-#ph_plots.make_phage_distribution()
+ph_plots.make_phage_distribution()
 
 ph_plots.make_jaccard_distribution()
