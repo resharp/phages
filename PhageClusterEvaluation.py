@@ -1,0 +1,168 @@
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+
+#TODO create directory, e.g. /mcl_75.I25.plots
+
+# we would like to visually and automatically inspect
+# the content of phage cluster
+# - how large is the cluster?
+# - which hosts do they come from?
+# - what is the Jaccard distribution of the clusters? (do we see a structure? multiple peaks?)
+# - what is the plain phage with the highest average (Jaccard) similarity to all other phages in the cluster?
+# - distribution of Jaccard index from the plain phage?
+# - can we make an iGraph plot of each cluster to assess structure?
+# - megablast the plain phage
+
+# INPUT
+# genome_phage_table_short.txt                                          (coupled PATRIC host id and phage predictions)
+# genome_taxonomy.txt                                                   (host taxonomy from PATRIC)
+# shared_pc_measures.mcl_75.I25.txt                                     (Jaccard similarities and nr. of ips_
+# split.shared_pc_measures.mcl_75.I25.nr_pc_min_5.sharing_0_1.abc.I25   (phage clusters)
+
+if os.name == "nt":
+    mydir = r"D:\17 Dutihl Lab\_tools\mcl\1000"
+else:
+    mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
+
+extension = "mcl_75.I25" # extension for mcl ip clustering (create subdir if it does not exist)
+extension2 = "I25" # extension for mcl phage clustering
+
+class PhageClusterEvaluation:
+
+    extension = ""
+    mydir = ""
+    dir_sep = ""
+
+    ip_pc_table_name = ""    #specific mcl result (clustering of IPs into PCs)
+    # ip_pc_table.mcl_75.I20
+
+    phc_ph_table_name = ""   #clustering of phages in phage clusters
+
+    ph_distances_name = "" #the file with the pairwise Jaccard similarities (and phage sizes in nr of IPs)
+
+    genome_ph_name = ""
+    genome_taxonomy_name = ""
+
+    ph_distances_df = None
+    phc_ph_df = None
+    genome_ph_df = None
+    genome_taxonomy_df = None
+
+    all_df = None
+
+    def __init__(self, mydir, extension, extension2):
+
+        self.mydir = mydir
+        self.extension = extension
+        self.extension2 = extension2
+
+        if os.name == 'nt':
+            self.dir_sep = "\\"
+        else:
+            self.dir_sep = "/"
+
+        #self.ip_pc_table_name = mydir + self.dir_sep + "ip_pc_table." + extension
+        self.phc_ph_table_name = mydir + self.dir_sep + "split.shared_pc_measures.mcl_75.I25.nr_pc_min_5.sharing_0_1.abc." + extension2
+        self.ph_distances_name = mydir + self.dir_sep + "shared_pc_measures." + extension + ".nr_pc_min_5.sharing_0_1.abc"
+
+        self.genome_ph_name = mydir + self.dir_sep + "genome_phage_table_short.txt"
+        self.genome_taxonomy_name = mydir + self.dir_sep + "genome_taxonomy.txt"
+
+    def read_files(self):
+
+        self.ph_distances_df= pd.read_csv(self.ph_distances_name, delimiter=" "
+                                        , skiprows=[0]
+                                        , usecols=[0, 1, 2]
+                                        , names=[ 'phage_1'
+                                                , 'phage_2'
+                                                # , 'count'
+                                                # , 'phage_1_ip_count'
+                                                # , 'phage_2_ip_count'
+                                                , 'jaccard_index'])
+
+        self.phc_ph_df= pd.read_csv(self.phc_ph_table_name, delimiter=" "
+                                        , header=None
+                                        , usecols=[0, 1]
+                                        , names=[ 'phc_id'
+                                                , 'phage_id'])
+
+        self.genome_ph_df= pd.read_csv(self.genome_ph_name, delimiter=" "
+                                        , header=None
+                                        , usecols=[0, 1]
+                                        , names=[ 'genome_id'
+                                                , 'phage_id'])
+
+        self.genome_taxonomy_df= pd.read_csv(self.genome_taxonomy_name
+                                        , sep='\t'
+                                        , header=None
+                                        , usecols=[0, 1, 2, 3]
+                                        , names=[ 'genome_id'
+                                                , 'family'
+                                                , 'genus'
+                                                , 'species']
+                                        , dtype={'genome_id' : 'object'})
+        # self.genome_taxonomy_df.info()
+
+    def determine_origin(self):
+        # for each cluster:
+        # - which hosts do they come from?
+
+        self.phc_ph_df.merge
+
+        merge_df = self.phc_ph_df.merge(self.genome_ph_df
+                                     , left_on=self.phc_ph_df.phage_id
+                                     , right_on=self.genome_ph_df.phage_id
+                                     , how='inner')
+
+        merge_df = merge_df[['phc_id', 'phage_id_x', 'genome_id']]
+
+        merge_df.rename(columns={'phage_id_x': 'phage_id'}, inplace=True)
+
+        merge_df = merge_df.merge(self.genome_taxonomy_df
+                                  , left_on=merge_df.genome_id
+                                  , right_on=self.genome_taxonomy_df.genome_id
+                                  , how='inner')
+
+        merge_df = merge_df[['phc_id','phage_id','genome_id_x','family','genus','species']]
+
+        merge_df.rename(columns={'genome_id_x': 'genome_id'}, inplace=True)
+
+        self.all_df = merge_df
+
+
+    def make_jaccard_distribution(self):
+
+        phcs = ("PHC_1", "PHC_2", "PHC_3", "PHC_4", "PHC_5")
+
+        for phc in phcs:
+            self.jaccard_dis_for_phage_cluster(phc)
+
+    def jaccard_dis_for_phage_cluster(self, phc):
+        data = self.all_df[self.all_df.phc_id == phc][['phage_id']]
+
+        #join distances with the phages of one cluster
+        data = data.merge(self.ph_distances_df
+                          , left_on=data.phage_id
+                          , right_on=self.ph_distances_df.phage_1
+                          , how='inner')
+        data = data['jaccard_index'].values.tolist()
+        plt.clf()
+        plt.xlabel("Jaccard similarity coefficient")
+        plt.ylabel("log10 scale of frequency")
+        plt.title("Pairwise similarities of phages for cluster {}, inflation {}".format(phc, self.extension2))
+
+        plt.hist(data, log=True, bins=[i / 100 for i in range(1, 101)])
+        figure_name = "{}{}{}{}ph_plots.jaccard_distribution_for_cluster.{}.{}.pdf" \
+            .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
+        # plt.show()
+        plt.savefig(figure_name)
+
+
+phc_eval = PhageClusterEvaluation(mydir, extension, extension2)
+
+phc_eval.read_files()
+
+phc_eval.determine_origin()
+
+phc_eval.make_jaccard_distribution()
