@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 # - which hosts do they come from?
 # - what is the Jaccard distribution of the clusters? (do we see a structure? multiple peaks?)
 # - what is the plain phage with the highest average (Jaccard) similarity to all other phages in the cluster?
+#       this is not strictly necessary we might also do readmapping against all phages in the cluster
 # - distribution of Jaccard index from the plain phage?
 # - can we make an iGraph plot of each cluster to assess structure?
+#   use e.g. Fruchterman-Reingold layout, it should use the weight of edges as strength
 # - megablast the plain phage
 
 # INPUT
@@ -21,7 +23,7 @@ import matplotlib.pyplot as plt
 # split.shared_pc_measures.mcl_75.I25.nr_pc_min_5.sharing_0_1.abc.I25   (phage clusters)
 
 if os.name == "nt":
-    mydir = r"D:\17 Dutihl Lab\_tools\mcl\1000"
+    mydir = r"D:\17 Dutihl Lab\_tools\mcl\all"
 else:
     mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
 
@@ -63,8 +65,8 @@ class PhageClusterEvaluation:
             self.dir_sep = "/"
 
         #self.ip_pc_table_name = mydir + self.dir_sep + "ip_pc_table." + extension
-        self.phc_ph_table_name = mydir + self.dir_sep + "split.shared_pc_measures.mcl_75.I25.nr_pc_min_5.sharing_0_1.abc." + extension2
-        self.ph_distances_name = mydir + self.dir_sep + "shared_pc_measures." + extension + ".nr_pc_min_5.sharing_0_1.abc"
+        self.phc_ph_table_name = mydir + self.dir_sep + "split.shared_pc_measures.mcl_75.I25.nr_pc_min_5.sharing_05.abc." + extension2
+        self.ph_distances_name = mydir + self.dir_sep + "shared_pc_measures." + extension + ".nr_pc_min_5.sharing_05.abc"
 
         self.genome_ph_name = mydir + self.dir_sep + "genome_phage_table_short.txt"
         self.genome_taxonomy_name = mydir + self.dir_sep + "genome_taxonomy.txt"
@@ -146,13 +148,25 @@ class PhageClusterEvaluation:
                           , left_on=data.phage_id
                           , right_on=self.ph_distances_df.phage_1
                           , how='inner')
+
+        plt.clf()
+        plot = data['jaccard_index'].plot(kind='density', bw_method=0.05)
+
+        plt.xlabel("Jaccard similarity coefficient")
+        plt.ylabel("density")
+        plt.title("Pairwise similarities of phages for cluster {}, inflation {}".format(phc, self.extension2))
+
+        figure_name = "{}{}{}{}ph_plots.jaccard_distribution_for_cluster.{}.density.{}.pdf" \
+            .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
+        plot.get_figure().savefig(figure_name, format='pdf')
+
         data = data['jaccard_index'].values.tolist()
         plt.clf()
         plt.xlabel("Jaccard similarity coefficient")
         plt.ylabel("log10 scale of frequency")
         plt.title("Pairwise similarities of phages for cluster {}, inflation {}".format(phc, self.extension2))
 
-        plt.hist(data, log=True, bins=[i / 100 for i in range(1, 101)])
+        plt.hist(data, log=True, bins=[i / 100 for i in range(50, 101)])
         figure_name = "{}{}{}{}ph_plots.jaccard_distribution_for_cluster.{}.{}.pdf" \
             .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
         # plt.show()
@@ -166,3 +180,4 @@ phc_eval.read_files()
 phc_eval.determine_origin()
 
 phc_eval.make_jaccard_distribution()
+
