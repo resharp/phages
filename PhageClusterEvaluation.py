@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import igraph as ig
 
 #TODO create directory, e.g. /mcl_75.I25.plots
 
@@ -135,13 +136,17 @@ class PhageClusterEvaluation:
 
     def make_jaccard_distribution(self):
 
-        phcs = ("PHC_1", "PHC_2", "PHC_3", "PHC_4", "PHC_5")
+        phcs = []
+
+        for i in range(1,2):
+        # for i in range(1,11):
+            phcs.append("PHC_" + str(i))
 
         for phc in phcs:
             self.jaccard_dis_for_phage_cluster(phc)
 
     def jaccard_dis_for_phage_cluster(self, phc):
-        data = self.all_df[self.all_df.phc_id == phc][['phage_id']]
+        data = self.phc_ph_df[self.phc_ph_df.phc_id == phc][['phage_id']]
 
         #join distances with the phages of one cluster
         data = data.merge(self.ph_distances_df
@@ -158,6 +163,7 @@ class PhageClusterEvaluation:
 
         figure_name = "{}{}{}{}ph_plots.jaccard_distribution_for_cluster.{}.density.{}.pdf" \
             .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
+
         plot.get_figure().savefig(figure_name, format='pdf')
 
         data = data['jaccard_index'].values.tolist()
@@ -172,6 +178,57 @@ class PhageClusterEvaluation:
         # plt.show()
         plt.savefig(figure_name)
 
+    def make_cluster_graphs(self):
+
+        phcs = []
+        # for i in range(1,2):
+        for i in range(1,11):
+            phcs.append("PHC_" + str(i))
+
+        for phc in phcs:
+            self.make_cluster_graph(phc)
+
+    def make_cluster_graph(self, phc):
+
+        #now collect all pairwise interactions for phc
+
+        phages_df = self.phc_ph_df[self.phc_ph_df.phc_id == phc][['phage_id']]
+
+        cluster_dist_df = phages_df.merge(self.ph_distances_df
+                            ,left_on=phages_df.phage_id
+                            ,right_on=self.ph_distances_df.phage_1
+                            ,how='inner')[['phage_1', 'phage_2']]
+
+        #also filter on links towards phages in other clusters
+        cluster_dist_df = phages_df.merge(cluster_dist_df
+                            ,left_on=phages_df.phage_id
+                            ,right_on=cluster_dist_df.phage_2
+                            ,how='inner')[['phage_1', 'phage_2']]
+
+        g = ig.Graph()
+
+        #first determine all vertices
+
+        phages_list = phages_df['phage_id'].values.tolist()
+
+        #TODO: you can also do this in one go, without looping
+        for phage in phages_list:
+            g.add_vertices(phage)
+
+        for index, row in cluster_dist_df.iterrows():
+            phage_1 = row.phage_1
+            phage_2 = row.phage_2
+            g.add_edges([(phage_1, phage_2)])
+
+        g.vs["label"] = g.vs["name"]
+        g.vs["color"] = "blue"
+
+        figure_name = "{}{}{}{}ph_plots.graph_for_cluster.{}.{}.pdf" \
+            .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
+
+        layout = g.layout_fruchterman_reingold()
+        ig.plot(g, figure_name, layout=layout)
+        # ig.plot(g, layout=layout)
 
 phc_eval = PhageClusterEvaluation(mydir, extension, extension2)
 
@@ -181,3 +238,4 @@ phc_eval.determine_origin()
 
 phc_eval.make_jaccard_distribution()
 
+phc_eval.make_cluster_graphs()
