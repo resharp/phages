@@ -197,13 +197,13 @@ class PhageClusterEvaluation:
         cluster_dist_df = phages_df.merge(self.ph_distances_df
                             ,left_on=phages_df.phage_id
                             ,right_on=self.ph_distances_df.phage_1
-                            ,how='inner')[['phage_1', 'phage_2']]
+                            ,how='inner')[['phage_1', 'phage_2', 'jaccard_index']]
 
         #also filter on links towards phages in other clusters
         cluster_dist_df = phages_df.merge(cluster_dist_df
                             ,left_on=phages_df.phage_id
                             ,right_on=cluster_dist_df.phage_2
-                            ,how='inner')[['phage_1', 'phage_2']]
+                            ,how='inner')[['phage_1', 'phage_2', 'jaccard_index']]
 
         g = ig.Graph()
 
@@ -218,17 +218,24 @@ class PhageClusterEvaluation:
         for index, row in cluster_dist_df.iterrows():
             phage_1 = row.phage_1
             phage_2 = row.phage_2
-            g.add_edges([(phage_1, phage_2)])
+
+            #check if the edge in the other direction does not exist!
+            if g.get_eid(phage_2, phage_1, directed=False, error=False) == -1:
+                g.add_edge(phage_1, phage_2, weight=row.jaccard_index)
+
+        # dummy = g.es[0].attributes()
 
         g.vs["label"] = g.vs["name"]
         g.vs["color"] = "blue"
 
+        # g.es["label"] = g.es["weight"]
+
         figure_name = "{}{}{}{}ph_plots.graph_for_cluster.{}.{}.pdf" \
             .format(self.mydir, self.dir_sep, "mcl_75.I25.plots", self.dir_sep, phc, self.extension2)
 
-        layout = g.layout_fruchterman_reingold()
+        # layout = g.layout_fruchterman_reingold()
+        layout = g.layout_fruchterman_reingold(weights=g.es["weight"])
         ig.plot(g, figure_name, layout=layout)
-        # ig.plot(g, layout=layout)
 
 phc_eval = PhageClusterEvaluation(mydir, extension, extension2)
 
