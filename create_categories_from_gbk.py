@@ -20,7 +20,7 @@ if os.path.isfile(gbk_file_name):
         for feat in rec.features:
             if feat.type == "CDS":
                 locus_tag = feat.qualifiers["locus_tag"][0]
-                start = feat.location.nofuzzy_start
+                start = feat.location.nofuzzy_start + 1 # +1 because the numbering in biopython seems to be 0 based
                 end = feat.location.nofuzzy_end
                 product = feat.qualifiers["product"][0]
 

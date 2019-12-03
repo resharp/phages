@@ -1,0 +1,122 @@
+import logging
+import os
+import pandas as pd
+
+sample = "MGXDB008660"
+
+if os.name == "nt":
+    sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
+else:
+    sample_dir = "/hosts/linuxhome/mutant31/tmp/richard/crassphage_samples"
+
+if os.name == 'nt':
+    dir_sep = "\\"
+else:
+    dir_sep = "/"
+
+# if os.path.isfile(aa_file_name):
+#     print("file {} exists".format(aa_file_name))
+
+# we will calculate
+# per genome AND per gene
+#   average AA coverage
+#   standard dev
+#   normalized stdev
+#   sum(CntNonSys)
+#   sum(CntSyn)
+#   dN/dS
+#   pN/pS? -> search definition
+#   % TopCodoncnt
+#   % SndCodoncnt
+#   % TrdCodoncnt
+#   Length of gene
+#
+#   then filter based on threshold, e.g.
+#       > 75% gene average (or a cut-off on normalized stddev)
+#       > 75% genome average
+#   first we do this on one sample and output a filtered file with measures per gene
+
+class CalcDiversiMeasures:
+
+    aa_table_name = ""
+    gene_table_name = ""
+
+    sample_dir = ""
+    sample = ""
+
+    dir_sep = ""
+    aa_df = None
+    gene_df = None
+
+    def __init__(self, sample_dir, sample):
+
+        logging.basicConfig(filename='CalcDiversiMeasures.log', filemode='w', format='%(asctime)s - %(message)s',
+                            level=logging.DEBUG)
+
+        self.sample_dir = sample_dir
+        self.sample = sample
+
+        if os.name == 'nt':
+            dir_sep = "\\"
+        else:
+            dir_sep = "/"
+
+    def read_files(self):
+        logging.debug("start reading tables")
+
+        self.read_aa_table()
+
+        logging.debug("finished reading tables")
+
+    def read_aa_table(self):
+
+        self.aa_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_AA_clean.txt"
+        self.aa_df = pd.read_csv(self.aa_table_name
+                                 , sep='\t'
+                                 , usecols=range(2,26)
+                                 )
+        self.gene_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_gene_measures.txt"
+
+        # automatic columns with first two skipped
+        # SKIPPED: Sample	Chr
+        # Protein	AAPosition	RefAA	RefSite	RefCodon	FstCodonPos	SndCodonPos	TrdCodonPos
+        # CntNonSyn	CntSyn	NbStop	TopAA	TopAAcnt	SndAA	SndAAcnt	TrdAA	TrdAAcnt
+        # TopCodon	TopCodoncnt	SndCodon	SndCodoncnt	TrdCodon	TrdCodoncnt	AAcoverage
+
+        # self.aa_df["sample"] = self.sample
+
+    def calc_measures(self):
+
+        #now first determine the gene table
+        #then calculate average coverage and stdev
+        #and output to new file
+
+        #gene output table should contain sample
+
+        # proteins = self.aa_df.Protein.unique()
+        # for protein in proteins:
+        #     print(protein)
+
+        self.gene_df = self.aa_df.groupby("Protein").agg(
+            {
+                'AAcoverage': ["mean", "std"],
+                'TopAAcnt': ["mean", "std"],
+                'SndAAcnt': ["mean", "std"],
+                'TrdAAcnt': ["mean", "std"],
+                'CntNonSyn': 'sum',
+                'CntSyn': 'sum'
+            }
+        )
+        self.gene_df["sample"] = sample
+
+    def write_measures(self):
+
+        self.gene_df.to_csv(path_or_buf=self.gene_table_name, index=False)
+
+calc = CalcDiversiMeasures(sample_dir, sample)
+
+calc.read_files()
+
+calc.calc_measures()
+
+calc.write_measures()
