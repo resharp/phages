@@ -72,8 +72,8 @@ class CalcDiversiMeasures:
 
         self.aa_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_AA_clean.txt"
         self.aa_df = pd.read_csv(self.aa_table_name
-                                 , sep='\t'
-                                 , usecols=range(2,26)
+                                 ,  sep='\t'
+                                 ,  usecols=range(2,26)
                                  )
         self.gene_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_gene_measures.txt"
 
@@ -83,15 +83,11 @@ class CalcDiversiMeasures:
         # CntNonSyn	CntSyn	NbStop	TopAA	TopAAcnt	SndAA	SndAAcnt	TrdAA	TrdAAcnt
         # TopCodon	TopCodoncnt	SndCodon	SndCodoncnt	TrdCodon	TrdCodoncnt	AAcoverage
 
-        # self.aa_df["sample"] = self.sample
-
     def calc_measures(self):
 
         #now first determine the gene table
         #then calculate average coverage and stdev
         #and output to new file
-
-        #gene output table should contain sample
 
         # proteins = self.aa_df.Protein.unique()
         # for protein in proteins:
@@ -99,19 +95,42 @@ class CalcDiversiMeasures:
 
         self.gene_df = self.aa_df.groupby("Protein").agg(
             {
-                'AAcoverage': ["mean", "std"],
-                'TopAAcnt': ["mean", "std"],
-                'SndAAcnt': ["mean", "std"],
-                'TrdAAcnt': ["mean", "std"],
+                'AAcoverage': ["mean", "std", "sum"],
+                'TopAAcnt': ["mean", "std", "sum"],
+                'SndAAcnt': ["mean", "std", "sum"],
+                'TrdAAcnt': ["mean", "std", "sum"],
                 'CntNonSyn': 'sum',
                 'CntSyn': 'sum'
             }
         )
+
+        #remove multi-index set on column axis
+        #https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
+        self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
+
+        self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='integer', errors='coerce')
+        self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='integer', errors='coerce')
+        self.gene_df.CntSyn_sum = pd.to_numeric(self.gene_df.CntSyn_sum, downcast='integer', errors='coerce')
+        self.gene_df.TopAAcnt_sum = pd.to_numeric(self.gene_df.TopAAcnt_sum, downcast='integer', errors='coerce')
+        self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='integer', errors='coerce')
+        self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='integer', errors='coerce')
+
+        #derived measures
+        # self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
+        self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
+
+        #round all floats to two decimals
+        self.gene_df = self.gene_df.round(decimals=2)
+
+        #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
+
+        # print(self.gene_df.dtypes)
 
     def write_measures(self):
 
-        self.gene_df.to_csv(path_or_buf=self.gene_table_name, index=False)
+        #the gene name is in the index
+        self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
 
 calc = CalcDiversiMeasures(sample_dir, sample)
 
