@@ -85,6 +85,10 @@ class CalcDiversiMeasures:
 
     def calc_measures(self):
 
+        #mean coverage of all genes
+        genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=2)
+
+
         #now first determine the gene table
         #then calculate average coverage and stdev
         #and output to new file
@@ -108,23 +112,25 @@ class CalcDiversiMeasures:
         #https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
 
-        self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='integer', errors='coerce')
-        self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='integer', errors='coerce')
-        self.gene_df.CntSyn_sum = pd.to_numeric(self.gene_df.CntSyn_sum, downcast='integer', errors='coerce')
-        self.gene_df.TopAAcnt_sum = pd.to_numeric(self.gene_df.TopAAcnt_sum, downcast='integer', errors='coerce')
-        self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='integer', errors='coerce')
-        self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='integer', errors='coerce')
+        self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.CntSyn_sum = pd.to_numeric(self.gene_df.CntSyn_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.TopAAcnt_sum = pd.to_numeric(self.gene_df.TopAAcnt_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
 
         #derived measures
         # self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
         self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
+        self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
+        #coefficient of variation for a gene
+        self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
 
         #round all floats to two decimals
         self.gene_df = self.gene_df.round(decimals=2)
 
         #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
-
         # print(self.gene_df.dtypes)
 
     def write_measures(self):
