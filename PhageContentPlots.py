@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 if os.name == "nt":
     mydir = r"D:\17 Dutihl Lab\_tools\mcl\1000"
 else:
-    mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_1000"
+    mydir = "/hosts/linuxhome/mgx/DB/PATRIC/patric/phage_genes_all"
 
 extension = "mcl_75.I25" # extension for mcl ip clustering
 extension2 = "I25" # extension for mcl phage clustering
@@ -94,7 +94,7 @@ class PhageContentPlots:
         plt.clf()
         plt.hist(data, bins=range(min_ips_in_pcs, max_ips_in_pcs, 1), log=True)
         plt.xlabel("nr. of proteins in cluster")
-        plt.ylabel("frequency")
+        plt.ylabel("log10 of frequency")
         plt.title("Occurence of protein cluster sizes for {}\n "
                   "minimum ips in pc set at: {}".format(self.extension, min_ips_in_pcs))
 
@@ -113,10 +113,10 @@ class PhageContentPlots:
         max_size = max(data)
         plt.clf()
 
-        plt.hist(data, bins=range(1, max_size, 1))
+        plt.hist(data, bins=range(1, max_size, 1), log=True)
 
         plt.xlabel("nr. of ips (proteins) in (pro)phage")
-        plt.ylabel("frequency")
+        plt.ylabel("log10 of frequency")
         plt.title("Distribution of number of proteins in predicted phages.")
 
         figure_name = "{}{}ph_plots.phage_distribution.pdf".format(self.mydir, self.dir_sep)
