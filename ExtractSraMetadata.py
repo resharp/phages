@@ -53,8 +53,16 @@ class ExtractSraMetadata:
                     if i.attributes["tax_id"].value == taxon_id ]
 
                 if len(taxon) == 1:
-                    primary_id = meta.getElementsByTagName('PRIMARY_ID')[0].firstChild.nodeValue
-                    study_title = meta.getElementsByTagName('STUDY_TITLE')[0].firstChild.nodeValue
+                    primary_ids = meta.getElementsByTagName('PRIMARY_ID')
+
+                    primary_id = "UNKNOWN"
+                    if len(primary_ids) == 1:
+                        primary_id = primary_ids[0].firstChild.nodeValue
+
+                    study_title = "UNKNOWN"
+                    study_titles = meta.getElementsByTagName('STUDY_TITLE')
+                    if len(study_titles) == 1:
+                        study_title = study_titles[0].firstChild.nodeValue
 
                     data.append([sample, primary_id, taxon[0][0], taxon[0][1], study_title])
 
