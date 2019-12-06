@@ -40,7 +40,7 @@ class ExtractSraMetadata:
             sample = os.path.basename(subfolder)
             metafile_name = subfolder + self.dir_sep + sample + "_metadata"
 
-            if os.path.isfile(metafile_name):
+            if os.path.isfile(metafile_name) and os.path.getsize(metafile_name) > 0:
                 logging.debug("processing {}".format(metafile_name))
 
                 meta = minidom.parse(metafile_name)
