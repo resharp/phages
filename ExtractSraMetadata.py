@@ -64,7 +64,7 @@ class ExtractSraMetadata:
                         primary_ids = meta.getElementsByTagName('PRIMARY_ID')
 
                         primary_id = "UNKNOWN"
-                        if len(primary_ids) == 1:
+                        if len(primary_ids) > 0:
                             primary_id = primary_ids[0].firstChild.nodeValue
 
                         study_title = "UNKNOWN"
@@ -81,7 +81,7 @@ class ExtractSraMetadata:
         #somehow this sorting does work but is not used in to_
         # df.sort_values(by='total_count', ascending=False, inplace=True)
 
-        df.to_csv(path_or_buf=self.sample_table_name, sep='\t', index=False)
+        df.to_csv(path_or_buf=self.sample_table_name, sep='\t', index=False, header=True)
 
 
 extract = ExtractSraMetadata(sample_dir, taxon_id)
