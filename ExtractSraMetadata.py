@@ -43,28 +43,36 @@ class ExtractSraMetadata:
             if os.path.isfile(metafile_name) and os.path.getsize(metafile_name) > 0:
                 logging.debug("processing {}".format(metafile_name))
 
-                meta = minidom.parse(metafile_name)
-                items = meta.getElementsByTagName('taxon')
+                parsed = False
+                try:
+                    meta = minidom.parse(metafile_name)
+                    parsed = True
+                except:
+                    logging.error("Error in parsing meta file for sample {}".format(sample))
 
-                taxon = [
-                        [i.attributes["total_count"].value
-                    ,   i.attributes["name"].value ]
-                    for i in items
-                    if i.attributes["tax_id"].value == taxon_id ]
+                if parsed:
 
-                if len(taxon) == 1:
-                    primary_ids = meta.getElementsByTagName('PRIMARY_ID')
+                    items = meta.getElementsByTagName('taxon')
 
-                    primary_id = "UNKNOWN"
-                    if len(primary_ids) == 1:
-                        primary_id = primary_ids[0].firstChild.nodeValue
+                    taxon = [
+                            [i.attributes["total_count"].value
+                        ,   i.attributes["name"].value ]
+                        for i in items
+                        if i.attributes["tax_id"].value == taxon_id ]
 
-                    study_title = "UNKNOWN"
-                    study_titles = meta.getElementsByTagName('STUDY_TITLE')
-                    if len(study_titles) == 1:
-                        study_title = study_titles[0].firstChild.nodeValue
+                    if len(taxon) == 1:
+                        primary_ids = meta.getElementsByTagName('PRIMARY_ID')
 
-                    data.append([sample, primary_id, taxon[0][0], taxon[0][1], study_title])
+                        primary_id = "UNKNOWN"
+                        if len(primary_ids) == 1:
+                            primary_id = primary_ids[0].firstChild.nodeValue
+
+                        study_title = "UNKNOWN"
+                        study_titles = meta.getElementsByTagName('STUDY_TITLE')
+                        if len(study_titles) == 1:
+                            study_title = study_titles[0].firstChild.nodeValue
+
+                        data.append([sample, primary_id, taxon[0][0], taxon[0][1], study_title])
 
         columns = ['sample', 'primary_id', 'total_count', 'taxon_name', 'study_title']
 
