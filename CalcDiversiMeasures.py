@@ -1,22 +1,9 @@
+import argparse
 import logging
 import os
-import pandas as pd
+import sys
 import numpy as np
-
-sample = "MGXDB008660"
-
-if os.name == "nt":
-    sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-else:
-    sample_dir = "/hosts/linuxhome/mutant31/tmp/richard/crassphage_samples"
-
-if os.name == 'nt':
-    dir_sep = "\\"
-else:
-    dir_sep = "/"
-
-# if os.path.isfile(aa_file_name):
-#     print("file {} exists".format(aa_file_name))
+import pandas as pd
 
 # we will calculate
 # per genome AND per gene
@@ -71,7 +58,7 @@ class CalcDiversiMeasures:
 
     def read_aa_table(self):
 
-        self.aa_table_name = sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_AA_clean.txt"
+        self.aa_table_name = self.sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_AA_clean.txt"
         self.aa_df = pd.read_csv(self.aa_table_name
                                  ,  sep='\t'
                                  ,  usecols=range(2,26)
@@ -131,19 +118,44 @@ class CalcDiversiMeasures:
         self.gene_df = self.gene_df.round(decimals=2)
 
         #gene output table should contain sample (for later integrating over multiple samples)
-        self.gene_df["sample"] = sample
+        self.gene_df["sample"] = self.sample
         # print(self.gene_df.dtypes)
 
     def write_measures(self):
 
-        self.gene_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_gene_measures.txt"
+        self.gene_table_name = self.sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_gene_measures.txt"
         #the gene name is in the index
         self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
 
-calc = CalcDiversiMeasures(sample_dir, sample)
 
-calc.read_files()
+def run_calc(args_in):
 
-calc.calc_measures()
+    parser = argparse.ArgumentParser()
 
-calc.write_measures()
+    parser.add_argument("-d", "--sample_dir", dest="sample_dir",
+                        help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
+
+    parser.add_argument("-s", "--sample", dest="sample",
+                        help="sample with Diversitools input", metavar="[sample}", required=True)
+
+    args = parser.parse_args(args_in)
+
+    print("Start running CalcDiversiMeasures")
+    print("sample_dir: " + args.sample_dir)
+    print("sample: " + args.sample)
+
+    calc = CalcDiversiMeasures(args.sample_dir, args.sample)
+
+    calc.read_files()
+
+    calc.calc_measures()
+
+    calc.write_measures()
+
+if __name__ == "__main__":
+    run_calc(sys.argv[1:])
+
+#TODO for testing, do not use in production
+# sample = "MGXDB008660"
+# sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
+# run_calc(["-d", sample_dir, "-s", sample])
