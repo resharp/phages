@@ -1,6 +1,7 @@
 import logging
 import os
 import pandas as pd
+import numpy as np
 
 sample = "MGXDB008660"
 
@@ -57,9 +58,9 @@ class CalcDiversiMeasures:
         self.sample = sample
 
         if os.name == 'nt':
-            dir_sep = "\\"
+            self.dir_sep = "\\"
         else:
-            dir_sep = "/"
+            self.dir_sep = "/"
 
     def read_files(self):
         logging.debug("start reading tables")
@@ -70,13 +71,11 @@ class CalcDiversiMeasures:
 
     def read_aa_table(self):
 
-        self.aa_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_AA_clean.txt"
+        self.aa_table_name = sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_AA_clean.txt"
         self.aa_df = pd.read_csv(self.aa_table_name
                                  ,  sep='\t'
                                  ,  usecols=range(2,26)
                                  )
-        self.gene_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_gene_measures.txt"
-
         # automatic columns with first two skipped
         # SKIPPED: Sample	Chr
         # Protein	AAPosition	RefAA	RefSite	RefCodon	FstCodonPos	SndCodonPos	TrdCodonPos
@@ -87,7 +86,6 @@ class CalcDiversiMeasures:
 
         #mean coverage of all genes
         genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=2)
-
 
         #now first determine the gene table
         #then calculate average coverage and stdev
@@ -122,6 +120,9 @@ class CalcDiversiMeasures:
         #derived measures
         # self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
         self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
+
+        self.gene_df["log10_dN/dS"] = np.log10(self.gene_df["dN/dS"])
+
         self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
         #coefficient of variation for a gene
         self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
@@ -135,6 +136,7 @@ class CalcDiversiMeasures:
 
     def write_measures(self):
 
+        self.gene_table_name = sample_dir + dir_sep + self.sample + dir_sep + self.sample + "_gene_measures.txt"
         #the gene name is in the index
         self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
 
