@@ -1,13 +1,10 @@
 import logging
+import sys
 import os
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns;sns.set()
-
-if os.name == "nt":
-    sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-else:
-    sample_dir = "/hosts/linuxhome/mutant31/tmp/richard/crassphage_samples"
 
 #MakeGenePlots
 # create two heatmaps
@@ -26,9 +23,10 @@ class MakeGenePlots:
 
     sample_dir = ""
     dir_sep = ""
+    plot_dir = ""
 
     gene_df = None
-    # gene_sample_df = None.
+
     gene_categories_df = None
 
     def __init__(self, sample_dir):
@@ -41,7 +39,6 @@ class MakeGenePlots:
 
         logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'MakeGenePlots.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.DEBUG)
-
 
     def read_files(self):
         logging.debug("start reading tables")
@@ -66,39 +63,75 @@ class MakeGenePlots:
 
         logging.debug("finished reading tables")
 
-    def make_heatmaps(self):
+    def create_plot_dir(self):
 
-        #https://seaborn.pydata.org/generated/seaborn.heatmap.html
+        self.plot_dir = self.sample_dir + self.dir_sep + "GenePlots"
+        os.makedirs(self.plot_dir, exist_ok=True)
 
-        # make a heatmap of the log10_dN/dS based on two (or more) samples
-        # first load multiple samples in one file
-        # we might also use cat for that?
+    #https://seaborn.pydata.org/generated/seaborn.heatmap.html
+    def create_heatmaps(self):
 
-        data = self.gene_df[['Protein', 'sample', 'log10_dN/dS']]
+        self.create_plot_dir()
 
+        # make a heatmap of the log10_dN/dS based on multiple samples
+        self.create_heatmap("log10_dN/dS", "Log 10 of dN/dS")
+
+        self.create_heatmap("AAcoverage_perc", "Coverage percentage (compared to whole genome)")
+
+    def create_heatmap(self, measure_field, title):
+
+        data = self.gene_df[['Protein', 'sample', measure_field]]
         data = data.sort_values("Protein")
-
         data = data.set_index(["sample", "Protein"])
 
-        # data = data.head(40)
+        # nr_of_samples = 3
+        # nr_of_genes = 10
+        # data = data.tail(nr_of_samples * nr_of_genes)
 
+        # convert from multi-index to cross-product table
         data = data.unstack()
 
         # data = data.transpose() # if you would like to switch columns and rows
 
-        plt.clf() #clear the current figure (always do this before any new plot)
-        ax = sns.heatmap(data,  cmap="YlGnBu", annot=False)
+        # rename columns, unstack
+        data.columns = ["_".join(x) for x in data.columns.ravel()]
+
+        # data.columns = [x.split("_")[-1] for x in data.columns]
+        data.columns = ["_".join(x.split("_")[3:]) for x in data.columns]
+
+        # can we remove gp02 and gp03?
+        # data = data.drop(["gp02", "gp03", "gp04"], axis=1)
+
+        plt.clf()  # clear the current figure (always do this before any new plot)
+        ax = sns.heatmap(data, cmap="YlGnBu", annot=False)
+        plt.title(title)
+
+        figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, measure_field.replace("/", "_"))
+
         # plt.show()
+        plt.savefig(figure_name)
 
-        figure_name = "{}{}gene_plots.{}.pdf" \
-            .format(self.sample_dir, self.dir_sep, "log10_dN_dS")
+def make_plots(args_in):
 
-        plt.show()
-        #plt.savefig(figure_name)
+    parser = argparse.ArgumentParser()
 
+    parser.add_argument("-d", "--sample_dir", dest="sample_dir",
+                        help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
-make = MakeGenePlots(sample_dir)
+    args = parser.parse_args(args_in)
 
-make.read_files()
-make.make_heatmaps()
+    print("Start running MakeGenePlots")
+    print("sample_dir: " + args.sample_dir)
 
+    make = MakeGenePlots(args.sample_dir)
+
+    make.read_files()
+
+    make.create_heatmaps()
+
+if __name__ == "__main__":
+    make_plots(sys.argv[1:])
+
+#TODO for testing, do not use in production
+# sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
+# make_plots(["-d", sample_dir])
