@@ -1,10 +1,11 @@
-import logging
-import sys
-import os
 import argparse
-import pandas as pd
+import logging
+import os
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns;sns.set()
+import sys
 
 #MakeGenePlots
 # create two heatmaps
@@ -63,6 +64,22 @@ class MakeGenePlots:
 
         logging.debug("finished reading tables")
 
+
+    def prepare_data(self):
+
+        #here we can prepare the data further for displaying purposes
+        #it could also have been done in CalcDiversiMeasures
+
+        #we want to see the missing genes, and missing genes are if there are no mappings or hardly any
+        self.gene_df['missing_gene'] = 0
+        self.gene_df.loc[self.gene_df.AAcoverage_perc < 0.02 , 'missing_gene'] = 1
+        self.gene_df.loc[np.isnan(self.gene_df.AAcoverage_perc), 'missing_gene'] = 1
+
+        self.gene_df['double_coverage'] = 0
+        self.gene_df.loc[self.gene_df.AAcoverage_perc > 2 , 'double_coverage'] = 1
+
+        # data_debug = self.gene_df[['sample','Protein', 'AAcoverage_perc', 'missing_gene', 'double_coverage']]
+
     def create_plot_dir(self):
 
         self.plot_dir = self.sample_dir + self.dir_sep + "GenePlots"
@@ -73,14 +90,34 @@ class MakeGenePlots:
 
         self.create_plot_dir()
 
+        #filter on quality
+        data = self.filter_on_quality(self.gene_df)
+
         # make a heatmap of the log10_dN/dS based on multiple samples
-        self.create_heatmap("log10_dN/dS", "Log 10 of dN/dS")
+        self.create_heatmap(data, "log10_dN/dS", "Log 10 of dN/dS (blue = positive selection)")
 
-        self.create_heatmap("AAcoverage_perc", "Coverage percentage (compared to whole genome)")
+        self.create_heatmap(data, "SndAAcnt_perc_filtered_mean", "Within sample AA variation in genes")
 
-    def create_heatmap(self, measure_field, title):
+        self.create_heatmap(data, "AAcoverage_perc", "Coverage percentage (compared to whole genome)")
 
-        data = self.gene_df[['Protein', 'sample', measure_field]]
+        #make a heatmap of quality measure AAcoverage_cv
+        self.create_heatmap(data, "AAcoverage_cv", "Internal coefficient of variation per gene")
+
+        #use unfiltered data for quality measures
+        data = self.gene_df
+        self.create_heatmap(data, "missing_gene", "Missing genes (based on coverage < 2% rest genome)")
+
+        self.create_heatmap(data, "double_coverage", "Genes that have > twice the amount of coverage compared to genome")
+
+    def filter_on_quality(self, data):
+        data = data[data.AAcoverage_cv < 0.2]
+        data = data[(data.AAcoverage_perc < 1.5)]
+        data = data[(data.AAcoverage_perc > 0.5)]
+        return data
+
+    def create_heatmap(self, data, measure_field, title):
+
+        data = data[['Protein', 'sample', measure_field]]
         data = data.sort_values("Protein")
         data = data.set_index(["sample", "Protein"])
 
@@ -108,7 +145,7 @@ class MakeGenePlots:
 
         figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, measure_field.replace("/", "_"))
 
-        # plt.show()
+        #plt.show()
         plt.savefig(figure_name)
 
 def make_plots(args_in):
@@ -126,6 +163,8 @@ def make_plots(args_in):
     make = MakeGenePlots(args.sample_dir)
 
     make.read_files()
+
+    make.prepare_data()
 
     make.create_heatmaps()
 
