@@ -71,6 +71,18 @@ class CalcDiversiMeasures:
 
     def calc_measures(self):
 
+        #before aggregating first make a filtered derived measure for SndAAcnt_perc
+        #we only want to keep percentages > 1% in the sample
+        self.aa_df["SndAAcnt_perc"] = self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"]
+        #TODO: filter out nan
+
+        # debug_data[debug_data['SndAAcnt_perc'] > 0.01]
+
+        self.aa_df['SndAAcnt_perc_filtered'] = 0
+        self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_filtered'] = self.aa_df["SndAAcnt_perc"]
+
+        # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
+
         #mean coverage of all genes
         genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=2)
 
@@ -89,7 +101,9 @@ class CalcDiversiMeasures:
                 'SndAAcnt': ["mean", "std", "sum"],
                 'TrdAAcnt': ["mean", "std", "sum"],
                 'CntNonSyn': 'sum',
-                'CntSyn': 'sum'
+                'CntSyn': 'sum',
+                'SndAAcnt_perc': 'mean',
+                'SndAAcnt_perc_filtered': 'mean'
             }
         )
 
@@ -105,17 +119,19 @@ class CalcDiversiMeasures:
         self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
 
         #derived measures
-        # self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
+
+        #self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
         self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
 
         self.gene_df["log10_dN/dS"] = np.log10(self.gene_df["dN/dS"])
 
+        #quality measures
         self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
         #coefficient of variation for a gene
         self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
 
-        #round all floats to two decimals
-        self.gene_df = self.gene_df.round(decimals=2)
+        #round all floats to four decimals
+        self.gene_df = self.gene_df.round(decimals=4)
 
         #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = self.sample
@@ -156,6 +172,8 @@ if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
-# sample = "MGXDB008660"
+# samples = ["MGXDB000864","MGXDB008660", "MGXDB009139", "MGXDB023930"]
+#
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-# run_calc(["-d", sample_dir, "-s", sample])
+# for sample in samples:
+#     run_calc(["-d", sample_dir, "-s", sample])
