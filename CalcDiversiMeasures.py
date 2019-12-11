@@ -123,7 +123,9 @@ class CalcDiversiMeasures:
         #self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
         self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
 
-        self.gene_df["log10_dN/dS"] = np.log10(self.gene_df["dN/dS"])
+        np.seterr(divide='ignore')
+        self.gene_df["log10_dN/dS"] = np.where(self.gene_df["dN/dS"] > 0, np.log10(self.gene_df["dN/dS"]), 0)
+        np.seterr(divide='warn')
 
         #quality measures
         self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
@@ -172,7 +174,7 @@ if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
-# samples = ["MGXDB000864","MGXDB008660", "MGXDB009139", "MGXDB023930"]
+# samples = ["MGXDB000864","MGXDB008660", "MGXDB009139", "MGXDB023930", "MGXDB022262", "MGXDB015228"]
 #
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
 # for sample in samples:
