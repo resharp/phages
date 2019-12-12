@@ -1,19 +1,18 @@
-import matplotlib.pyplot as plt
-import statistics as stat
+import pandas as pd
 
 bases = ["T", "C", "A", "G"]
 codons = [a + b + c for a in bases for b in bases for c in bases]
 amino_acids = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"
 codon_table = dict(zip(codons, amino_acids))
 
-codon_syn_list = []
+codon_data = []
 
 for codon in codon_table:
 
     aa = codon_table[codon]
 
-    syncnt = 0
-    nonsyncnt = 0
+    syn_cnt = 0
+    non_syn_cnt = 0
 
     #now do 9 mutations for each codon
     for i in range(0,3):
@@ -28,24 +27,15 @@ for codon in codon_table:
             new_aa = codon_table["".join(new_codon_list)]
 
             if aa != new_aa:
-                # print("nonsyn: {}".format(new_aa))
-                nonsyncnt += 1
+                non_syn_cnt += 1
             else:
-                # print("syn: {}".format(new_aa))
-                syncnt += 1
+                syn_cnt += 1
 
-    fS_N = syncnt / nonsyncnt
-    codon_syn_list += [fS_N]
+    fraction_S_N = syn_cnt / non_syn_cnt
+    codon_data.append([codon, codon_table[codon], syn_cnt, non_syn_cnt, fraction_S_N])
 
-    print("codon: {} aa: {} nonsyn: {} syn: {} fS_N: {}".format(codon, aa, nonsyncnt, syncnt, fS_N))
+    print("codon: {}\taa: {}\tnon_syn_cnt: {}\tsyn_cnt: {}\tfraction_S_N: {}".format(codon, aa, non_syn_cnt, syn_cnt, round(fraction_S_N,4)))
 
-    print(stat.mean(codon_syn_list))
-
-print(len(codon_table))
-
-# aas = [a for a in amino_acids]
-
-plt.plot(codons, codon_syn_list)
-# plt.clf()
-# plt.hist(codon_syn_list)
-plt.show()
+df = pd.DataFrame(codon_data, columns=['codon', 'aa', 'syn', 'non_syn', 'fraction_S_N'])
+df = df.round(decimals=4)
+df.to_csv("codon_syn_non_syn_probabilities.txt", index=False)
