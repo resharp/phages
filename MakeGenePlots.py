@@ -8,13 +8,13 @@ import seaborn as sns;sns.set()
 import sys
 
 #MakeGenePlots
-# create two heatmaps
+# create multiple heatmaps
 #   fst with the log dN/ds values
 #   snd with the missing genes (just 0/1 for clarity? or use the normalized coverage?)
 #   trd distribution plots [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
-#   we will aggregate them to gene level (aggregation over all samples)
+#   we aggregate them to gene level (aggregation over all samples)
 #   therefore we load all files and merge them into one dataframe
 
 #masking missing values in heatmaps
@@ -80,6 +80,11 @@ class MakeGenePlots:
 
         # data_debug = self.gene_df[['sample','Protein', 'AAcoverage_perc', 'missing_gene', 'double_coverage']]
 
+        #make binary plot for positive selection or conservation
+        self.gene_df['positive_selection'] = 0
+        self.gene_df.loc[self.gene_df["log10_pN/pS"] > 0.1, 'positive_selection'] = 1
+        self.gene_df.loc[self.gene_df["log10_pN/pS"] < -0.1, 'positive_selection'] = -1
+
     def create_plot_dir(self):
 
         self.plot_dir = self.sample_dir + self.dir_sep + "GenePlots"
@@ -94,7 +99,8 @@ class MakeGenePlots:
         data = self.filter_on_quality(self.gene_df)
 
         # make a heatmap of the log10_dN/dS based on multiple samples
-        self.create_heatmap(data, "log10_dN/dS", "Log 10 of dN/dS (blue = positive selection)")
+        self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (blue = positive selection)")
+        self.create_heatmap(data, "positive_selection", "log10_pN/pS either > 0.1 or < - 0.1")
 
         self.create_heatmap(data, "SndAAcnt_perc_filtered_mean", "Within sample AA variation in genes")
 
@@ -110,7 +116,9 @@ class MakeGenePlots:
         self.create_heatmap(data, "double_coverage", "Genes that have > twice the amount of coverage compared to genome")
 
     def filter_on_quality(self, data):
+
         data = data[data.AAcoverage_cv < 0.2]
+
         data = data[(data.AAcoverage_perc < 1.5)]
         data = data[(data.AAcoverage_perc > 0.5)]
         return data
