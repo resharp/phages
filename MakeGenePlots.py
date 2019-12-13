@@ -26,9 +26,9 @@ class MakeGenePlots:
     dir_sep = ""
     plot_dir = ""
 
+    gene_sample_df = None
     gene_df = None
-
-    gene_categories_df = None
+    gene_anno_df = None
 
     def __init__(self, sample_dir):
 
@@ -42,10 +42,18 @@ class MakeGenePlots:
                             level=logging.DEBUG)
 
     def read_files(self):
+
         logging.debug("start reading tables")
+        self.read_gene_sample_measures()
+
+        #TODO: add read gene_annotaion
+        self.read_gene_annotation()
+
+        logging.debug("finished reading tables")
+
+    def read_gene_sample_measures(self):
 
         subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir()]
-
         samples = []
 
         for subfolder in subfolders:
@@ -60,30 +68,40 @@ class MakeGenePlots:
                                          )
                 samples.append(gene_sample_df)
 
-        self.gene_df = pd.concat(samples)
+        self.gene_sample_df = pd.concat(samples)
 
-        logging.debug("finished reading tables")
+    def read_gene_annotation(self):
 
+        #TODO: also make the annotation file a parameter of MakeGenePlots
+        gene_anno_file_name = self.sample_dir + self.dir_sep + "crassphage_gene_list.txt"
 
-    def prepare_data(self):
+        self.gene_anno_df = pd.read_csv(gene_anno_file_name
+                                        ,   sep='\t'
+                                        ,   header=None
+                                        ,   usecols=[0,4]
+                                        ,   names=["Protein", "Annotation"]
+                                        )
+        pass
+
+    def prepare_data_for_plots(self):
 
         #here we can prepare the data further for displaying purposes
         #it could also have been done in CalcDiversiMeasures
 
         #we want to see the missing genes, and missing genes are if there are no mappings or hardly any
-        self.gene_df['missing_gene'] = 0
-        self.gene_df.loc[self.gene_df.AAcoverage_perc < 0.02 , 'missing_gene'] = 1
-        self.gene_df.loc[np.isnan(self.gene_df.AAcoverage_perc), 'missing_gene'] = 1
+        self.gene_sample_df['missing_gene'] = 0
+        self.gene_sample_df.loc[self.gene_sample_df.AAcoverage_perc < 0.02 , 'missing_gene'] = 1
+        self.gene_sample_df.loc[np.isnan(self.gene_sample_df.AAcoverage_perc), 'missing_gene'] = 1
 
-        self.gene_df['double_coverage'] = 0
-        self.gene_df.loc[self.gene_df.AAcoverage_perc > 2 , 'double_coverage'] = 1
+        self.gene_sample_df['double_coverage'] = 0
+        self.gene_sample_df.loc[self.gene_sample_df.AAcoverage_perc > 2 , 'double_coverage'] = 1
 
         # data_debug = self.gene_df[['sample','Protein', 'AAcoverage_perc', 'missing_gene', 'double_coverage']]
 
         #make binary plot for positive selection or conservation
-        self.gene_df['positive_selection'] = 0
-        self.gene_df.loc[self.gene_df["log10_pN/pS"] > 0.1, 'positive_selection'] = 1
-        self.gene_df.loc[self.gene_df["log10_pN/pS"] < -0.1, 'positive_selection'] = -1
+        self.gene_sample_df['positive_selection'] = 0
+        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] > 0.1, 'positive_selection'] = 1
+        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] < -0.1, 'positive_selection'] = -1
 
     def create_plot_dir(self):
 
@@ -93,10 +111,8 @@ class MakeGenePlots:
     #https://seaborn.pydata.org/generated/seaborn.heatmap.html
     def create_heatmaps(self):
 
-        self.create_plot_dir()
-
         #filter on quality
-        data = self.filter_on_quality(self.gene_df)
+        data = self.filter_on_quality(self.gene_sample_df)
 
         # make a heatmap of the log10_dN/dS based on multiple samples
         self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (blue = positive selection)")
@@ -110,7 +126,7 @@ class MakeGenePlots:
         self.create_heatmap(data, "AAcoverage_cv", "Internal coefficient of variation per gene")
 
         #use unfiltered data for quality measures
-        data = self.gene_df
+        data = self.gene_sample_df
         self.create_heatmap(data, "missing_gene", "Missing genes (based on coverage < 2% rest genome)")
 
         self.create_heatmap(data, "double_coverage", "Genes that have > twice the amount of coverage compared to genome")
@@ -156,7 +172,45 @@ class MakeGenePlots:
         #plt.show()
         plt.savefig(figure_name)
 
-def make_plots(args_in):
+    #now we want to see what genes have the highest and lowest pN/pS scores
+    #based on self.gene_sample_df
+    #that can be further aggregated into self.gene_df
+    #and then merged with self.gene_annotation.df for annotation
+    def score_genes(self):
+
+        self.gene_df = self.gene_sample_df.groupby("Protein").agg(
+            {
+                'log10_pN/pS': ["mean", "count", "std"]
+            }).reset_index()
+
+        self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
+        self.gene_df.rename(columns={'Protein_': 'Protein'}, inplace=True)
+
+        self.gene_df = self.gene_df.sort_values(by='log10_pN/pS_mean', ascending=False)
+
+        merge_df = self.gene_df.merge(self.gene_anno_df
+                                     , left_on=self.gene_df.Protein
+                                     , right_on=self.gene_anno_df.Protein
+                                     , how='inner')
+        merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
+
+        merge_df = merge_df[['Protein','log10_pN/pS_mean','log10_pN/pS_std','Annotation']]
+
+        merge_df.to_csv(self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.txt", index=False, sep='\t')
+
+    def do_analysis(self):
+
+        self.read_files()
+
+        self.prepare_data_for_plots()
+
+        self.create_plot_dir()
+
+        self.create_heatmaps()
+
+        self.score_genes()
+
+def do_analysis(args_in):
 
     parser = argparse.ArgumentParser()
 
@@ -170,15 +224,11 @@ def make_plots(args_in):
 
     make = MakeGenePlots(args.sample_dir)
 
-    make.read_files()
-
-    make.prepare_data()
-
-    make.create_heatmaps()
+    make.do_analysis()
 
 if __name__ == "__main__":
-    make_plots(sys.argv[1:])
+    do_analysis(sys.argv[1:])
 
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-# make_plots(["-d", sample_dir])
+# do_analysis(["-d", sample_dir])
