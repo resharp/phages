@@ -31,30 +31,28 @@ class CalcDiversiMeasures:
     gene_table_name = ""
 
     sample_dir = ""
-    sample = ""
 
     dir_sep = ""
     aa_df = None
     gene_df = None
     codon_df = None
 
-    def __init__(self, sample_dir, sample):
+    def __init__(self, sample_dir):
 
         logging.basicConfig(filename='CalcDiversiMeasures.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.DEBUG)
 
         self.sample_dir = sample_dir
-        self.sample = sample
 
         if os.name == 'nt':
             self.dir_sep = "\\"
         else:
             self.dir_sep = "/"
 
-    def read_files(self):
+    def read_files(self, sample):
         logging.debug("start reading tables")
 
-        self.read_aa_table()
+        self.read_aa_table(sample)
 
         self.read_codon_table()
 
@@ -62,9 +60,9 @@ class CalcDiversiMeasures:
 
         logging.debug("finished reading tables")
 
-    def read_aa_table(self):
+    def read_aa_table(self, sample):
 
-        self.aa_table_name = self.sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_AA_clean.txt"
+        self.aa_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + sample + "_AA_clean.txt"
         self.aa_df = pd.read_csv(self.aa_table_name
                                  ,  sep='\t'
                                  ,  usecols=range(2,26)
@@ -95,7 +93,7 @@ class CalcDiversiMeasures:
         #todo: hoe kan refcodon nan zijn?
         # merge_df_short = merge_df[['Protein','AAPosition','RefCodon', 'codon', 'syn', 'non_syn']]
 
-    def calc_measures(self):
+    def calc_measures(self, sample):
 
         #before aggregating first make a filtered derived measure for SndAAcnt_perc
         #we only want to keep percentages > 1% in the sample
@@ -172,15 +170,22 @@ class CalcDiversiMeasures:
         self.gene_df = self.gene_df.round(decimals=4)
 
         #gene output table should contain sample (for later integrating over multiple samples)
-        self.gene_df["sample"] = self.sample
+        self.gene_df["sample"] = sample
         # print(self.gene_df.dtypes)
 
-    def write_measures(self):
+    def write_measures(self, sample):
 
-        self.gene_table_name = self.sample_dir + self.dir_sep + self.sample + self.dir_sep + self.sample + "_gene_measures.txt"
+        self.gene_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + sample + "_gene_measures.txt"
         #the gene name is in the index
         self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
 
+    def run_calc(self, sample):
+
+        self.read_files(sample)
+
+        self.calc_measures(sample)
+
+        self.write_measures(sample)
 
 
 def run_calc(args_in):
@@ -191,29 +196,53 @@ def run_calc(args_in):
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
     parser.add_argument("-s", "--sample", dest="sample",
-                        help="sample with Diversitools input", metavar="[sample}", required=True)
+                        help="sample with Diversitools input", metavar="[sample}", required=False)
+
+    parser.add_argument("-a", "--all", action="store_true", default=False,
+                        help="run all samples in sample directory", required=False)
 
     args = parser.parse_args(args_in)
 
     print("Start running CalcDiversiMeasures")
     print("sample_dir: " + args.sample_dir)
-    print("sample: " + args.sample)
+    if args.sample:
+        print("sample: " + args.sample)
+    if args.all:
+        print("all samples: " + str(args.all))
 
-    calc = CalcDiversiMeasures(args.sample_dir, args.sample)
+    if (not args.all) and (not args.sample):
+        print("Error: either explicitly specify -a for all samples or specify a specific sample with -s [sample]")
+        return
 
-    calc.read_files()
+    # some wrapper code that
+    # determines if a sample name is given
+    # or it is specified that all samples should be calculated
 
-    calc.calc_measures()
+    calc = CalcDiversiMeasures(args.sample_dir)
 
-    calc.write_measures()
+    if args.sample:
+        calc.run_calc(args.sample)
+        return
+
+    if args.all:
+        subfolders = [f.path for f in os.scandir(args.sample_dir) if f.is_dir()]
+
+        for subfolder in subfolders:
+            sample = os.path.basename(subfolder)
+            sample_name = subfolder + calc.dir_sep + sample + "_AA_clean.txt"
+
+            if os.path.isfile(sample_name) and os.path.getsize(sample_name) > 0:
+                logging.debug("processing {}".format(sample_name))
+                calc.run_calc(sample)
 
 if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
-# samples = ["MGXDB000864","MGXDB008660", "MGXDB009139", "MGXDB023930", "MGXDB022262"]
-# #samples = ["MGXDB009139"]
-#
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-# for sample in samples:
-#     run_calc(["-d", sample_dir, "-s", sample])
+# #run all samples
+# # run_calc(["-d", sample_dir, "-a"])
+#
+# #or run one sample, or a list of
+# sample = "MGXDB009139"
+# run_calc(["-d", sample_dir, "-s", sample])
