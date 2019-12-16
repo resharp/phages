@@ -172,7 +172,8 @@ class MakeGenePlots:
         #plt.show()
         plt.savefig(figure_name)
 
-    #now we want to see what genes have the highest and lowest pN/pS scores
+
+    #we want to see what genes have the highest and lowest pN/pS scores
     #based on self.gene_sample_df
     #that can be further aggregated into self.gene_df
     #and then merged with self.gene_annotation.df for annotation
@@ -198,6 +199,40 @@ class MakeGenePlots:
 
         merge_df.to_csv(self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.txt", index=False, sep='\t')
 
+    def create_box_plots(self):
+
+        #now we want to make a boxplot for all genes with their log10_pN/pS
+        #or first take the top 10 with highest log10_pN/pS and the top 10 with lowest log10pN/pS
+        filter_data = self.gene_df.head(10)[['Protein', 'log10_pN/pS_mean']]
+        self.create_box_plot(filter_data, "top 10 positive selection")
+
+        filter_data = self.gene_df.tail(10)[['Protein', 'log10_pN/pS_mean']]
+        self.create_box_plot(filter_data, "top 10 most conserved")
+
+    def create_box_plot(self, filter_data, title):
+
+        data = self.filter_on_quality(self.gene_sample_df)
+
+        data = data.merge(filter_data
+                             , left_on=data.Protein
+                             , right_on=filter_data.Protein
+                             , how='inner')
+
+        # .sort_values(by='log10_pN/pS_mean', ascending=False)
+        plt.clf()
+        plt.title(title)
+        sns.set(style="ticks")
+        sns.boxplot(x="log10_pN/pS", y="Protein_x", data=data,
+                    whis="range", palette="vlag")
+
+        sns.swarmplot(x="log10_pN/pS", y="Protein_x", data=data,
+                      size=2, color=".3", linewidth=0)
+
+        figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, title.replace(" ", "_"))
+
+        # plt.show()
+        plt.savefig(figure_name)
+
     def do_analysis(self):
 
         self.read_files()
@@ -206,9 +241,11 @@ class MakeGenePlots:
 
         self.create_plot_dir()
 
-        self.create_heatmaps()
+        # self.create_heatmaps()
 
         self.score_genes()
+
+        self.create_box_plots()
 
 def do_analysis(args_in):
 
