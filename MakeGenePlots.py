@@ -209,6 +209,9 @@ class MakeGenePlots:
         filter_data = self.gene_df.tail(10)[['Protein', 'log10_pN/pS_mean']]
         self.create_box_plot(filter_data, "top 10 most conserved")
 
+        self.create_box_plot(self.gene_df, "all genes")
+
+
     def create_box_plot(self, filter_data, title):
 
         data = self.filter_on_quality(self.gene_sample_df)
@@ -222,6 +225,9 @@ class MakeGenePlots:
         plt.clf()
         plt.title(title)
         sns.set(style="ticks")
+
+        #TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
+        #we should probably recalculate p_N/p_S with a pseudocount
         sns.boxplot(x="log10_pN/pS", y="Protein_x", data=data,
                     whis="range", palette="vlag")
 
@@ -241,7 +247,7 @@ class MakeGenePlots:
 
         self.create_plot_dir()
 
-        # self.create_heatmaps()
+        self.create_heatmaps()
 
         self.score_genes()
 
