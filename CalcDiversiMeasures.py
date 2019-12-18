@@ -13,7 +13,7 @@ import pandas as pd
 #   sum(CntNonSys)
 #   sum(CntSyn)
 #   dN/dS
-#   pN/pS? -> search definition
+#   pN/pS
 #   % TopCodoncnt
 #   % SndCodoncnt
 #   % TrdCodoncnt
@@ -101,24 +101,125 @@ class CalcDiversiMeasures:
         self.aa_df["CntSnp"] = self.aa_df["CntSyn"] + self.aa_df["CntNonSyn"]
 
         #TODO: filter out nan
-
-        # debug_data[debug_data['SndAAcnt_perc'] > 0.01]
-
         self.aa_df['SndAAcnt_perc_filtered'] = 0
         self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_filtered'] = self.aa_df["SndAAcnt_perc"]
 
-        debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
-
-        #mean coverage of all genes
-        genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=2)
-
-        #now first determine the gene table
-        #then calculate average coverage and stdev
-        #and output to new file
+        # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
 
         # proteins = self.aa_df.Protein.unique()
         # for protein in proteins:
         #     print(protein)
+
+        #now we want to determine the distances between SNPs in self.aa_df
+        #and then take the 5 percentile shortest distances to identify regions that are close
+        #for now we determine SNP as non-empty RefCodon unequal to non-empty TopCodon
+
+        # SCP "single codon polymorphism" = difference between TopCodon and RefCodon
+        scp_df = self.aa_df
+        scp_df = scp_df[scp_df.TopCodon.notnull()]
+        scp_df = scp_df[scp_df.RefCodon.notnull()]
+        scp_df = scp_df[scp_df.TopCodon != scp_df.RefCodon]
+
+        self.find_and_write_hypervariable_regions(sample, scp_df, "non syn regions compared to ref")
+
+        #now we should be able to do the same for any other positions
+        #for example for distances between within-sample variations
+
+        scp_df = self.aa_df
+        scp_df = scp_df[scp_df.SndAAcnt_perc_filtered > 0.01]
+
+        self.find_and_write_hypervariable_regions(sample, scp_df, "intra sample high diversity regions ")
+
+
+    # scp_df only needs Protein and AAPosition and you can put anything there
+    def find_and_write_hypervariable_regions(self, sample, scp_df, title):
+
+        # you might want to add filter fields like RefCodon and TopCodon for debugging purposes
+        # scp_df = scp_df[["Protein", "AAPosition", "RefCodon", "TopCodon"]].reset_index()
+        scp_df = scp_df[["Protein", "AAPosition"]].reset_index()
+
+        #add some extra fields to use for positioning
+        scp_df.rename(columns={'index': 'AAPositionGenome'}, inplace=True)
+        scp_df['AAPositionGenome'] = scp_df['AAPositionGenome'] + 1 #+1 to correct for 0-based result of reset_index()
+
+        scp_df = scp_df.reset_index()
+        scp_df.rename(columns={'index': 'SCPPosition'}, inplace=True)
+        scp_df['SCPPosition'] = scp_df['SCPPosition'] + 1 #+1 to correct for 0-based result of reset_index()
+
+        #distance is the backward distance
+        scp_df['distance'] = scp_df['AAPositionGenome'].diff()
+        #distance_next is the forward distance
+        scp_df['distance_next'] = scp_df['distance'].shift(-1)
+
+        percentile = 5
+        distance_cutoff = np.percentile(scp_df[scp_df['distance'].notnull()].distance, percentile)
+
+        #for experimenting with manually set distance cut-offs
+        #TODO ************************
+        #distance_cutoff = 10
+
+        #apply filter on distance cutoff between SCPs
+        scp_df = scp_df[(scp_df.distance <= distance_cutoff) | (scp_df.distance_next <= distance_cutoff)]
+
+        #SCPDistance = the distance between FILTERED rows
+        # => Distance 1 means that these SCPs should be joined in a hypervariable region according to distance cut-off
+        scp_df['SCPDistance'] = scp_df['SCPPosition'].diff()
+        scp_df['SCPDistance_next'] = scp_df['SCPDistance'].shift(-1)
+
+        #now the next step would be to filter out just the joining regions
+        scp_df = scp_df[(scp_df['SCPDistance'] <= 1) | (scp_df['SCPDistance_next'] <= 1)]
+
+        #TODO: scp_df might also be used to calculate overlap over multiple samples
+
+        gene_scp_df = scp_df.groupby('Protein')['AAPosition'].apply(list).reset_index(name='positions')
+        # -> results in example of positions: [2,3,4,5,19,20], with multiple
+
+        #for determining the joining regions, we start looping, because doing this with a set operation seems difficult
+        data_for_df = []
+        for index, row in gene_scp_df.iterrows():
+
+            # example of positions: [2,3,4,5,19,20] -> should result in two regions [2,3,4,5] and [19,20]
+            # if the distance_cutoff is < the distance between pos 5 and 19
+            positions = row["positions"]
+            #initialize previous position in such a way that the first condition will hold and a region will be started
+            old_pos = positions[0] - distance_cutoff
+            #always start a new region for each gene
+            region = []
+            for pos in positions:
+                if (pos <= old_pos + distance_cutoff):
+                    region.append(pos)
+                else:
+                    #first finish the region
+                    if len(region) > 0:
+                        first_aa_pos = region[0]
+                        last_aa_pos = region[-1]
+                        data_for_df.append([row["Protein"], first_aa_pos, last_aa_pos])
+                    #then start a new region
+                    region = []
+                    region.append(pos)
+                #save previous position
+                old_pos = pos
+            #finish the last region
+            if len(region) > 0:
+                first_aa_pos = region[0]
+                last_aa_pos = region[-1]
+                data_for_df.append([row["Protein"], first_aa_pos, last_aa_pos])
+
+        columns = ["Protein", "AAPositionStart", "AAPositionEnd"]
+
+        new_gene_scp_df = pd.DataFrame(columns=columns, data=data_for_df)
+
+        new_gene_scp_df["length"] = new_gene_scp_df["AAPositionEnd"] - new_gene_scp_df["AAPositionStart"] + 1
+
+        gene_region_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + \
+                                 sample + "_gene_" + title.replace(" ", "_") + ".txt"
+        new_gene_scp_df.to_csv(gene_region_table_name, sep='\t', index=False)
+
+    #aggregate measures and write output to new file
+    def aggregate_measures(self, sample):
+
+        #mean coverage of all genes
+        genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
 
         self.gene_df = self.aa_df.groupby("Protein").agg(
             {
@@ -171,7 +272,6 @@ class CalcDiversiMeasures:
 
         #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
-        # print(self.gene_df.dtypes)
 
     def write_measures(self, sample):
 
@@ -184,6 +284,8 @@ class CalcDiversiMeasures:
         self.read_files(sample)
 
         self.calc_measures(sample)
+
+        self.aggregate_measures(sample)
 
         self.write_measures(sample)
 
