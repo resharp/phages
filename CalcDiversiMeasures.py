@@ -130,48 +130,54 @@ class CalcDiversiMeasures:
 
         self.find_and_write_hypervariable_regions(sample, scp_df, "intra sample high diversity regions ")
 
+    # poi_df contains Protein and positions of interest of filtered rows
+    # poi_df only only needs to contain Protein and AAPosition and you can put anything in AAPosition
+    # however, for debugging purposes, you might want to add filter fields like RefCodon and TopCodon
+    # that have contributed to the determination of the positions of interest
+    def find_and_write_hypervariable_regions(self, sample, poi_df, title):
 
-    # scp_df only needs Protein and AAPosition and you can put anything there
-    def find_and_write_hypervariable_regions(self, sample, scp_df, title):
-
-        # you might want to add filter fields like RefCodon and TopCodon for debugging purposes
-        # scp_df = scp_df[["Protein", "AAPosition", "RefCodon", "TopCodon"]].reset_index()
-        scp_df = scp_df[["Protein", "AAPosition"]].reset_index()
+        # poi_df = poi_df[["Protein", "AAPosition", "RefCodon", "TopCodon"]].reset_index()
+        poi_df = poi_df[["Protein", "AAPosition"]].reset_index()
 
         #add some extra fields to use for positioning
-        scp_df.rename(columns={'index': 'AAPositionGenome'}, inplace=True)
-        scp_df['AAPositionGenome'] = scp_df['AAPositionGenome'] + 1 #+1 to correct for 0-based result of reset_index()
+        poi_df.rename(columns={'index': 'AAPositionGenome'}, inplace=True)
+        poi_df['AAPositionGenome'] = poi_df['AAPositionGenome'] + 1 #+1 to correct for 0-based result of reset_index()
 
-        scp_df = scp_df.reset_index()
-        scp_df.rename(columns={'index': 'SCPPosition'}, inplace=True)
-        scp_df['SCPPosition'] = scp_df['SCPPosition'] + 1 #+1 to correct for 0-based result of reset_index()
+        poi_df = poi_df.reset_index()
+        poi_df.rename(columns={'index': 'PoiPosition'}, inplace=True)
+        poi_df['PoiPosition'] = poi_df['PoiPosition'] + 1 #+1 to correct for 0-based result of reset_index()
 
-        #distance is the backward distance
-        scp_df['distance'] = scp_df['AAPositionGenome'].diff()
-        #distance_next is the forward distance
-        scp_df['distance_next'] = scp_df['distance'].shift(-1)
+        #distance_bw is the backward distance
+        poi_df['distance_bw'] = poi_df['AAPositionGenome'].diff()
+        #distance_fw is the forward distance
+        poi_df['distance_fw'] = poi_df['distance_bw'].shift(-1)
 
+        #these next two lines are the core of the method: determine the 5% percentile
+        #of the distance distribution between positions of interest
         percentile = 5
-        distance_cutoff = np.percentile(scp_df[scp_df['distance'].notnull()].distance, percentile)
+        distance_cutoff = np.percentile(poi_df[poi_df['distance_bw'].notnull()].distance_bw, percentile)
 
-        #for experimenting with manually set distance cut-offs
+        #for experimenting with manually set distance cut-offs, not determined by percentile
         #TODO ************************
-        #distance_cutoff = 10
+        distance_cutoff = 1
 
-        #apply filter on distance cutoff between SCPs
-        scp_df = scp_df[(scp_df.distance <= distance_cutoff) | (scp_df.distance_next <= distance_cutoff)]
+        #apply filter on distance cutoff between POIs (positions-of-interest)
+        poi_df = poi_df[(poi_df.distance_bw <= distance_cutoff) | (poi_df.distance_fw <= distance_cutoff)]
 
-        #SCPDistance = the distance between FILTERED rows
-        # => Distance 1 means that these SCPs should be joined in a hypervariable region according to distance cut-off
-        scp_df['SCPDistance'] = scp_df['SCPPosition'].diff()
-        scp_df['SCPDistance_next'] = scp_df['SCPDistance'].shift(-1)
+        #PoiDistance = the distance between FILTERED rows
+        # => PoiDistance 1 means that these SCPs should be joined in a hypervariable region according to distance cut-off
+        # e.g. when the cut-off is set at 2 the "distance" between rows can be 2, and still the PoiDistance is 1
+        #first calculate the backward distance
+        poi_df['PoiDistance_bw'] = poi_df['PoiPosition'].diff()
+        #forward distance is just the backward distance of the next row
+        poi_df['PoiDistance_fw'] = poi_df['PoiDistance_bw'].shift(-1)
 
-        #now the next step would be to filter out just the joining regions
-        scp_df = scp_df[(scp_df['SCPDistance'] <= 1) | (scp_df['SCPDistance_next'] <= 1)]
+        #now filter out just the joining regions
+        poi_df = poi_df[(poi_df['PoiDistance_fw'] <= 1) | (poi_df['PoiDistance_bw'] <= 1)]
 
-        #TODO: scp_df might also be used to calculate overlap over multiple samples
+        #TODO: poi_df might also be used to calculate overlap over multiple samples
 
-        gene_scp_df = scp_df.groupby('Protein')['AAPosition'].apply(list).reset_index(name='positions')
+        gene_scp_df = poi_df.groupby('Protein')['AAPosition'].apply(list).reset_index(name='positions')
         # -> results in example of positions: [2,3,4,5,19,20], with multiple
 
         #for determining the joining regions, we start looping, because doing this with a set operation seems difficult
@@ -207,13 +213,13 @@ class CalcDiversiMeasures:
 
         columns = ["Protein", "AAPositionStart", "AAPositionEnd"]
 
-        new_gene_scp_df = pd.DataFrame(columns=columns, data=data_for_df)
+        new_gene_poi_df = pd.DataFrame(columns=columns, data=data_for_df)
 
-        new_gene_scp_df["length"] = new_gene_scp_df["AAPositionEnd"] - new_gene_scp_df["AAPositionStart"] + 1
+        new_gene_poi_df["length"] = new_gene_poi_df["AAPositionEnd"] - new_gene_poi_df["AAPositionStart"] + 1
 
         gene_region_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + \
                                  sample + "_gene_" + title.replace(" ", "_") + ".txt"
-        new_gene_scp_df.to_csv(gene_region_table_name, sep='\t', index=False)
+        new_gene_poi_df.to_csv(gene_region_table_name, sep='\t', index=False)
 
     #aggregate measures and write output to new file
     def aggregate_measures(self, sample):
@@ -343,8 +349,8 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
 # #run all samples
-# # run_calc(["-d", sample_dir, "-a"])
+# run_calc(["-d", sample_dir, "-a"])
 #
-# #or run one sample, or a list of
+#or run one sample, or a list of
 # sample = "MGXDB009139"
 # run_calc(["-d", sample_dir, "-s", sample])
