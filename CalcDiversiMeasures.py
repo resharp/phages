@@ -98,11 +98,12 @@ class CalcDiversiMeasures:
         #before aggregating first make a filtered derived measure for SndAAcnt_perc
         #we only want to keep percentages > 1% in the sample
         self.aa_df["SndAAcnt_perc"] = self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"]
-        self.aa_df["CntSnp"] = self.aa_df["CntSyn"] + self.aa_df["CntNonSyn"]
 
         #TODO: filter out nan
         self.aa_df['SndAAcnt_perc_filtered'] = 0
         self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_filtered'] = self.aa_df["SndAAcnt_perc"]
+
+        self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
 
@@ -159,7 +160,7 @@ class CalcDiversiMeasures:
 
         #for experimenting with manually set distance cut-offs, not determined by percentile
         #TODO ************************
-        distance_cutoff = 1
+        #distance_cutoff = 1
 
         #apply filter on distance cutoff between POIs (positions-of-interest)
         poi_df = poi_df[(poi_df.distance_bw <= distance_cutoff) | (poi_df.distance_fw <= distance_cutoff)]
@@ -221,10 +222,12 @@ class CalcDiversiMeasures:
                                  sample + "_gene_" + title.replace(" ", "_") + ".txt"
         new_gene_poi_df.to_csv(gene_region_table_name, sep='\t', index=False)
 
-    #aggregate measures and write output to new file
+    #aggregate measures
     def aggregate_measures(self, sample):
 
         #mean coverage of all genes
+
+        #TODO add CntSnp median over all genes
         genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
 
         self.gene_df = self.aa_df.groupby("Protein").agg(
@@ -239,7 +242,7 @@ class CalcDiversiMeasures:
                 'SndAAcnt_perc_filtered': 'mean',
                 'syn': 'sum',
                 'non_syn': 'sum',
-                'CntSnp': 'median'
+                'CntSnp': 'mean'
             }
         )
 
@@ -261,12 +264,18 @@ class CalcDiversiMeasures:
 
         self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
 
-        self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * self.gene_df["CntNonSyn_sum"] / self.gene_df["CntSyn_sum"]
+        #take median of non-zero values over all amino acids (alle genes)
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
+        snp_pseudo_count = np.sqrt(count_snp_median) / 2
+
+        self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * \
+            (self.gene_df["CntNonSyn_sum"] + snp_pseudo_count)/(self.gene_df["CntSyn_sum"] + snp_pseudo_count)
 
         np.seterr(divide='ignore')
         self.gene_df["log10_dN/dS"] = np.where(self.gene_df["dN/dS"] > 0, np.log10(self.gene_df["dN/dS"]), 0)
-        self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
         np.seterr(divide='warn')
+
+        self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
 
         #quality measures
         self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
@@ -279,6 +288,7 @@ class CalcDiversiMeasures:
         #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
 
+    # write aggregated gene measures to new file
     def write_measures(self, sample):
 
         self.gene_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + sample + "_gene_measures.txt"
@@ -350,7 +360,7 @@ if __name__ == "__main__":
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
 # #run all samples
 # run_calc(["-d", sample_dir, "-a"])
-#
+
 #or run one sample, or a list of
 # sample = "MGXDB009139"
 # run_calc(["-d", sample_dir, "-s", sample])
