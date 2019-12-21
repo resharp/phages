@@ -39,17 +39,17 @@ class MakeGenePlots:
             self.dir_sep = "/"
 
         logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'MakeGenePlots.log', filemode='w', format='%(asctime)s - %(message)s',
-                            level=logging.DEBUG)
+                            level=logging.INFO)
 
     def read_files(self):
 
-        logging.debug("start reading tables")
+        logging.info("start reading tables")
         self.read_gene_sample_measures()
 
         #TODO: add read gene_annotaion
         self.read_gene_annotation()
 
-        logging.debug("finished reading tables")
+        logging.info("finished reading tables")
 
     def read_gene_sample_measures(self):
 
@@ -61,7 +61,7 @@ class MakeGenePlots:
             sample_name = subfolder + self.dir_sep + sample + "_gene_measures.txt"
 
             if os.path.isfile(sample_name) and os.path.getsize(sample_name) > 0:
-                logging.debug("processing {}".format(sample_name))
+                logging.info("processing {}".format(sample_name))
 
                 gene_sample_df = pd.read_csv(sample_name
                                          ,  sep='\t'
@@ -179,7 +179,9 @@ class MakeGenePlots:
     #and then merged with self.gene_annotation.df for annotation
     def score_genes(self):
 
-        self.gene_df = self.gene_sample_df.groupby("Protein").agg(
+        filtered_gene_sample_df = self.filter_on_quality(self.gene_sample_df)
+
+        self.gene_df = filtered_gene_sample_df.groupby("Protein").agg(
             {
                 'log10_pN/pS': ["mean", "count", "std"]
             }).reset_index()
@@ -195,19 +197,23 @@ class MakeGenePlots:
                                      , how='inner')
         merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
 
-        merge_df = merge_df[['Protein','log10_pN/pS_mean','log10_pN/pS_std','Annotation']]
+        merge_df = merge_df[['Protein','log10_pN/pS_mean','log10_pN/pS_std','log10_pN/pS_count','Annotation']]
 
         merge_df.to_csv(self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.txt", index=False, sep='\t')
 
-    def create_box_plots(self):
+    def create_box_plots(self, min_nr_samples=3):
 
         #now we want to make a boxplot for all genes with their log10_pN/pS
         #or first take the top 10 with highest log10_pN/pS and the top 10 with lowest log10pN/pS
-        filter_data = self.gene_df.head(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(filter_data, "top 10 positive selection")
 
-        filter_data = self.gene_df.tail(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(filter_data, "top 10 most conserved")
+        #filter out the genes that do not have a minimal presence of min_nr_of_samples occurences in the samples
+        filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
+
+        top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean']]
+        self.create_box_plot(top10_data, "top 10 pos selection present in at least {} samples".format(min_nr_samples))
+
+        bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean']]
+        self.create_box_plot(bottom10_data, "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
         self.create_box_plot(self.gene_df, "all genes")
 
@@ -215,6 +221,7 @@ class MakeGenePlots:
     def create_box_plot(self, filter_data, title):
 
         data = self.filter_on_quality(self.gene_sample_df)
+        # data = self.gene_sample_df
 
         data = data.merge(filter_data
                              , left_on=data.Protein
@@ -251,7 +258,9 @@ class MakeGenePlots:
 
         self.score_genes()
 
-        self.create_box_plots()
+        #create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
+        #after applying the quality filter
+        self.create_box_plots(min_nr_samples=3)
 
 def do_analysis(args_in):
 
@@ -275,3 +284,4 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
 # do_analysis(["-d", sample_dir])
+
