@@ -260,7 +260,7 @@ class MakeGenePlots:
         # plt.show()
         plt.savefig(figure_name)
 
-    def do_analysis(self):
+    def do_analysis(self, min_nr_samples):
 
         self.read_files()
 
@@ -274,7 +274,7 @@ class MakeGenePlots:
 
         #create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
         #after applying the quality filter
-        self.create_box_plots(min_nr_samples=3)
+        self.create_box_plots(min_nr_samples)
 
 def do_analysis(args_in):
 
@@ -283,19 +283,27 @@ def do_analysis(args_in):
     parser.add_argument("-d", "--sample_dir", dest="sample_dir",
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
+    parser.add_argument("-ns", "--min_nr_samples", dest="min_nr_samples", metavar="[min_nr_samples]", type=int,
+                        help="minimal nr of samples for genes")
+
     args = parser.parse_args(args_in)
 
     print("Start running MakeGenePlots")
     print("sample_dir: " + args.sample_dir)
 
+    if not args.min_nr_samples:
+        args.min_nr_samples = 3
+    print("minimal nr of samples = {}".format(args.min_nr_samples))
+
     make = MakeGenePlots(args.sample_dir)
 
-    make.do_analysis()
+    make.do_analysis(args.min_nr_samples)
 
 if __name__ == "__main__":
     do_analysis(sys.argv[1:])
 
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-# do_analysis(["-d", sample_dir])
+# do_analysis(["-d", sample_dir, "-ns", "4"])
+
 
