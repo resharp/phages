@@ -215,6 +215,10 @@ class MakeGenePlots:
         bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean']]
         self.create_box_plot(bottom10_data, "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
+        combined_data = pd.DataFrame.append(top10_data, bottom10_data)
+        self.create_box_plot(combined_data,
+                             "top and bottom 10 present in at least {} samples".format(min_nr_samples))
+
         self.create_box_plot(self.gene_df, "all genes")
 
 
