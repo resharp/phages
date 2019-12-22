@@ -228,6 +228,20 @@ class MakeGenePlots:
                              , right_on=filter_data.Protein
                              , how='inner')
 
+        data.rename(columns={"Protein_x": "Protein"}, inplace=True)
+
+        data = data[["Protein", "log10_pN/pS"]]
+
+        #add mean of measure per gene and then merge with the original dataset
+        # in order to sort the genes on the mean of the measure
+        grouped = data.groupby("Protein").mean()
+
+        data = data.merge(grouped
+                          , left_on=data.Protein
+                          , right_on = grouped.index
+                          , how='inner').sort_values(["log10_pN/pS_y", "Protein"], ascending=False).\
+            rename(columns={'log10_pN/pS_x': 'log10_pN/pS'})
+
         # .sort_values(by='log10_pN/pS_mean', ascending=False)
         plt.clf()
         plt.title(title)
@@ -235,10 +249,10 @@ class MakeGenePlots:
 
         #TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         #we should probably recalculate p_N/p_S with a pseudocount
-        sns.boxplot(x="log10_pN/pS", y="Protein_x", data=data,
+        sns.boxplot(x="log10_pN/pS", y="Protein", data=data,
                     whis="range", palette="vlag")
 
-        sns.swarmplot(x="log10_pN/pS", y="Protein_x", data=data,
+        sns.swarmplot(x="log10_pN/pS", y="Protein", data=data,
                       size=2, color=".3", linewidth=0)
 
         figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, title.replace(" ", "_"))
