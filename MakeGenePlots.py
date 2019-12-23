@@ -141,9 +141,9 @@ class MakeGenePlots:
         data = data[(data.AAcoverage_perc > 0.5)]
         return data
 
-    def create_heatmap(self, data, measure_field, title):
+    def create_heatmap(self, data, measure, title):
 
-        data = data[['Protein', 'sample', measure_field]]
+        data = data[['Protein', 'sample', measure]]
         data = data.sort_values("Protein")
         data = data.set_index(["sample", "Protein"])
 
@@ -169,7 +169,7 @@ class MakeGenePlots:
         ax = sns.heatmap(data, cmap="YlGnBu", annot=False)
         plt.title(title)
 
-        figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, measure_field.replace("/", "_"))
+        figure_name = "{}{}gene_plots.heat_map.{}.pdf".format(self.plot_dir, self.dir_sep, measure.replace("/", "_"))
 
         #plt.show()
         plt.savefig(figure_name)
@@ -186,6 +186,7 @@ class MakeGenePlots:
         self.gene_df = filtered_gene_sample_df.groupby("Protein").agg(
             {
                 'log10_pN/pS': ["mean", "count", "std"]
+            ,   'entropy_mean': ["mean", "count"]
             }).reset_index()
 
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
@@ -212,19 +213,35 @@ class MakeGenePlots:
         filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(top10_data, "top 10 pos selection present in at least {} samples".format(min_nr_samples))
+        self.create_box_plot(top10_data, "log10_pN/pS",
+                             "top 10 pos selection present in at least {} samples".format(min_nr_samples))
 
         bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(bottom10_data, "top 10 most conserved present in at least {} samples".format(min_nr_samples))
+        self.create_box_plot(bottom10_data, "log10_pN/pS",
+                             "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data,
+        self.create_box_plot(combined_data, "log10_pN/pS",
                              "top and bottom 10 present in at least {} samples".format(min_nr_samples))
 
-        self.create_box_plot(self.gene_df, "all genes")
+        self.create_box_plot(self.gene_df, "log10_pN/pS", "all genes")
+
+        filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
+
+        top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean']]
+        self.create_box_plot(top10_data, "entropy_mean",
+                             "top 10 internal var present in at least {} samples".format(min_nr_samples))
+
+        bottom10_data = filter_data.tail(10)[['Protein', 'entropy_mean_mean']]
+        self.create_box_plot(bottom10_data, "entropy_mean",
+                             "bottom 10 internal var present in at least {} samples".format(min_nr_samples))
+
+        combined_data = pd.DataFrame.append(top10_data, bottom10_data)
+        self.create_box_plot(combined_data, "entropy_mean",
+                             "top and bottom 10 internal var in at least {} samples".format(min_nr_samples))
 
 
-    def create_box_plot(self, filter_data, title):
+    def create_box_plot(self, filter_data, measure, title):
 
         data = self.filter_on_quality(self.gene_sample_df)
         # data = self.gene_sample_df
@@ -236,7 +253,7 @@ class MakeGenePlots:
 
         data.rename(columns={"Protein_x": "Protein"}, inplace=True)
 
-        data = data[["Protein", "log10_pN/pS"]]
+        data = data[["Protein", measure]]
 
         #add mean of measure per gene and then merge with the original dataset
         # in order to sort the genes on the mean of the measure
@@ -245,24 +262,24 @@ class MakeGenePlots:
         data = data.merge(grouped
                           , left_on=data.Protein
                           , right_on = grouped.index
-                          , how='inner').sort_values(["log10_pN/pS_y", "Protein"], ascending=False).\
-            rename(columns={'log10_pN/pS_x': 'log10_pN/pS'})
+                          , how='inner').sort_values(["{}_y".format(measure), "Protein"], ascending=False).\
+            rename(columns={"{}_x".format(measure): measure })
 
-        # .sort_values(by='log10_pN/pS_mean', ascending=False)
         plt.clf()
         plt.title(title)
         sns.set(style="ticks")
 
         #TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         #we should probably recalculate p_N/p_S with a pseudocount
-        sns.boxplot(x="log10_pN/pS", y="Protein", data=data,
+        sns.boxplot(x=measure, y="Protein", data=data,
                     whis="range", palette="vlag")
 
-        sns.swarmplot(x="log10_pN/pS", y="Protein", data=data,
+        sns.swarmplot(x=measure, y="Protein", data=data,
                       size=2, color=".3", linewidth=0)
 
-        figure_name = "{}{}gene_plots.{}.pdf".format(self.plot_dir, self.dir_sep, title.replace(" ", "_"))
-
+        figure_name = "{}{}gene_plots.box_plot.{}.{}.pdf".format(self.plot_dir, self.dir_sep,
+                                                                 measure.replace("/", "_"),
+                                                                 title.replace(" ", "_"))
         # plt.show()
         plt.savefig(figure_name)
 
