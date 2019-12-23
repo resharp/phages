@@ -122,6 +122,8 @@ class MakeGenePlots:
 
         self.create_heatmap(data, "AAcoverage_perc", "Coverage percentage (compared to whole genome)")
 
+        self.create_heatmap(data, "entropy_mean", "Mean codon entropy (base 10)")
+
         #make a heatmap of quality measure AAcoverage_cv
         self.create_heatmap(data, "AAcoverage_cv", "Internal coefficient of variation per gene")
 

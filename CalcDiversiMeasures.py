@@ -97,7 +97,17 @@ class CalcDiversiMeasures:
 
         #before aggregating first make a filtered derived measure for SndAAcnt_perc
         #we only want to keep percentages > 1% in the sample
-        self.aa_df["SndAAcnt_perc"] = self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"]
+
+        self.aa_df['TopAAcnt_perc'] = (self.aa_df["TopAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
+        self.aa_df["SndAAcnt_perc"] = (self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
+        self.aa_df['TrdAAcnt_perc'] = (self.aa_df["TrdAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
+
+        # determine estimation of entropy per AA locus, based on three codon varieties
+        # we only keep the nans if the entropy for TopAAcnt_perc would be nan (=missing depth coverage)
+        self.aa_df["entropy"] = np.abs(-self.aa_df['TopAAcnt_perc'] * np.log10(self.aa_df['TopAAcnt_perc'])
+                                       -(self.aa_df['SndAAcnt_perc'] * np.log10(self.aa_df['SndAAcnt_perc'])).replace(np.nan,0)
+                                       -(self.aa_df['TrdAAcnt_perc'] * np.log10(self.aa_df['TrdAAcnt_perc'])).replace(np.nan,0)
+                                       )
 
         #TODO: filter out nan
         self.aa_df['SndAAcnt_perc_filtered'] = 0
@@ -106,10 +116,6 @@ class CalcDiversiMeasures:
         self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
-
-        # proteins = self.aa_df.Protein.unique()
-        # for protein in proteins:
-        #     print(protein)
 
         #now we want to determine the distances between SNPs in self.aa_df
         #and then take the 5 percentile shortest distances to identify regions that are close
@@ -242,7 +248,8 @@ class CalcDiversiMeasures:
                 'SndAAcnt_perc_filtered': 'mean',
                 'syn': 'sum',
                 'non_syn': 'sum',
-                'CntSnp': 'mean'
+                'CntSnp': 'mean',
+                'entropy': 'mean'
             }
         )
 
