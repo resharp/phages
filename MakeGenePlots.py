@@ -9,15 +9,15 @@ import sys
 
 #MakeGenePlots
 # create multiple heatmaps
-#   fst with the log dN/ds values
-#   snd with the missing genes (just 0/1 for clarity? or use the normalized coverage?)
+#   fst with the log pN/pS values
+#   snd with the missing genes (just 0/1 for clarity)
 #   trd distribution plots [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
 #   we aggregate them to gene level (aggregation over all samples)
 #   therefore we load all files and merge them into one dataframe
-
-#masking missing values in heatmaps
+#
+#masking missing values in heatmaps:
 #https://github.com/mwaskom/seaborn/issues/375
 
 class MakeGenePlots:
@@ -112,13 +112,13 @@ class MakeGenePlots:
     def create_heatmaps(self):
 
         #filter on quality
-        data = self.filter_on_quality(self.gene_sample_df)
+        data = self.gene_sample_filtered_on_quality()
 
-        # make a heatmap of the log10_dN/dS based on multiple samples
+        # make a heatmap of the log10_pN/pS based on multiple samples
         self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (blue = positive selection)")
         self.create_heatmap(data, "positive_selection", "log10_pN/pS either > 0.1 or < - 0.1")
 
-        self.create_heatmap(data, "SndAAcnt_perc_filtered_mean", "Within sample AA variation in genes")
+        self.create_heatmap(data, "SndAAcnt_perc_polymorphism_mean", "Within sample AA variation in genes")
 
         self.create_heatmap(data, "AAcoverage_perc", "Coverage percentage (compared to whole genome)")
 
@@ -133,8 +133,9 @@ class MakeGenePlots:
 
         self.create_heatmap(data, "double_coverage", "Genes that have > twice the amount of coverage compared to genome")
 
-    def filter_on_quality(self, data):
+    def gene_sample_filtered_on_quality(self):
 
+        data = self.gene_sample_df
         data = data[data.AAcoverage_cv < 0.2]
 
         data = data[(data.AAcoverage_perc < 1.5)]
@@ -162,18 +163,13 @@ class MakeGenePlots:
         # data.columns = [x.split("_")[-1] for x in data.columns]
         data.columns = ["_".join(x.split("_")[3:]) for x in data.columns]
 
-        # can we remove gp02 and gp03?
-        # data = data.drop(["gp02", "gp03", "gp04"], axis=1)
-
         plt.clf()  # clear the current figure (always do this before any new plot)
         ax = sns.heatmap(data, cmap="YlGnBu", annot=False)
         plt.title(title)
 
         figure_name = "{}{}gene_plots.heat_map.{}.pdf".format(self.plot_dir, self.dir_sep, measure.replace("/", "_"))
 
-        #plt.show()
         plt.savefig(figure_name)
-
 
     #we want to see what genes have the highest and lowest pN/pS scores
     #based on self.gene_sample_df
@@ -181,7 +177,7 @@ class MakeGenePlots:
     #and then merged with self.gene_annotation.df for annotation
     def score_genes(self):
 
-        filtered_gene_sample_df = self.filter_on_quality(self.gene_sample_df)
+        filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
 
         self.gene_df = filtered_gene_sample_df.groupby("Protein").agg(
             {
@@ -243,7 +239,7 @@ class MakeGenePlots:
 
     def create_box_plot(self, filter_data, measure, title):
 
-        data = self.filter_on_quality(self.gene_sample_df)
+        data = self.gene_sample_filtered_on_quality()
         # data = self.gene_sample_df
 
         data = data.merge(filter_data

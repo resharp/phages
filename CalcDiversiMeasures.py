@@ -5,25 +5,21 @@ import sys
 import numpy as np
 import pandas as pd
 
-# we will calculate
-# per genome AND per gene
+# we will calculate per gene
 #   average AA coverage
 #   standard dev
-#   normalized stdev
+#   normalized stdev (coefficient of variation)
 #   sum(CntNonSys)
 #   sum(CntSyn)
-#   dN/dS
 #   pN/pS
 #   % TopCodoncnt
 #   % SndCodoncnt
 #   % TrdCodoncnt
-#   Length of gene
+#   entropy
+#   ..
 #
-#   then filter based on threshold, e.g.
-#       > 75% gene average (or a cut-off on normalized stddev)
-#       > 75% genome average
-#   first we do this on one sample and output a filtered file with measures per gene
-
+#   we do this on one sample and output a file with measures per gene
+#   there is no filtering here
 class CalcDiversiMeasures:
 
     aa_table_name = ""
@@ -93,29 +89,33 @@ class CalcDiversiMeasures:
         #todo: hoe kan refcodon nan zijn?
         # merge_df_short = merge_df[['Protein','AAPosition','RefCodon', 'codon', 'syn', 'non_syn']]
 
-    def calc_measures(self, sample):
+    def calc_measures(self):
 
-        #before aggregating first make a filtered derived measure for SndAAcnt_perc
-        #we only want to keep percentages > 1% in the sample
+        # ENTROPY determine estimation of entropy per AA locus, based on three codon varieties
+        self.aa_df['TopAAcnt_perc'] = (self.aa_df["TopAAcnt"] / self.aa_df["AAcoverage"])
+        self.aa_df["SndAAcnt_perc"] = (self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"])
+        self.aa_df['TrdAAcnt_perc'] = (self.aa_df["TrdAAcnt"] / self.aa_df["AAcoverage"])
 
-        self.aa_df['TopAAcnt_perc'] = (self.aa_df["TopAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
-        self.aa_df["SndAAcnt_perc"] = (self.aa_df["SndAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
-        self.aa_df['TrdAAcnt_perc'] = (self.aa_df["TrdAAcnt"] / self.aa_df["AAcoverage"])#.replace(np.nan, 0)
-
-        # determine estimation of entropy per AA locus, based on three codon varieties
         # we only keep the nans if the entropy for TopAAcnt_perc would be nan (=missing depth coverage)
         self.aa_df["entropy"] = np.abs(-self.aa_df['TopAAcnt_perc'] * np.log10(self.aa_df['TopAAcnt_perc'])
                                        -(self.aa_df['SndAAcnt_perc'] * np.log10(self.aa_df['SndAAcnt_perc'])).replace(np.nan,0)
                                        -(self.aa_df['TrdAAcnt_perc'] * np.log10(self.aa_df['TrdAAcnt_perc'])).replace(np.nan,0)
                                        )
 
-        #TODO: filter out nan
-        self.aa_df['SndAAcnt_perc_filtered'] = 0
-        self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_filtered'] = self.aa_df["SndAAcnt_perc"]
+        #DEFINITION of POLYMORPHISM
+        #before aggregating first make a filtered derived measure for SndAAcnt_perc
+        #we only want to keep percentages > 1% in the sample
+        # SndAAcnt_perc_polymorphism
+        self.aa_df['SndAAcnt_perc_polymorphism'] = 0
+        self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_polymorphism'] = self.aa_df["SndAAcnt_perc"]
 
+        #total number of SNPs
         self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
 
-        # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_filtered"]]
+        # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
+
+
+    def find_and_write_local_regions(self, sample):
 
         #now we want to determine the distances between SNPs in self.aa_df
         #and then take the 5 percentile shortest distances to identify regions that are close
@@ -129,13 +129,24 @@ class CalcDiversiMeasures:
 
         self.find_and_write_hypervariable_regions(sample, scp_df, "non syn regions compared to ref")
 
-        #now we should be able to do the same for any other positions
+        #TODO: reconsider, finding high peaks of entropy might be interesting
+        # however, it will not find broad ranges of high entropy (we have to find some balance for the height_percentile
+        # and the perceptile in find_and_write_hypervariable_regions depending on our question)
+        height_percentile = 95
+        entropy_cutoff = np.percentile(self.aa_df[self.aa_df["entropy"].notnull()].entropy, height_percentile)
+
+        entropy_df = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc_polymorphism", "entropy"]]
+        entropy_df = entropy_df[(entropy_df.entropy > entropy_cutoff)]
+
+        self.find_and_write_hypervariable_regions(sample, entropy_df, "high entropy regions")
+
+        #we should also be able to do the same for any other positions
         #for example for distances between within-sample variations
 
-        scp_df = self.aa_df
-        scp_df = scp_df[scp_df.SndAAcnt_perc_filtered > 0.01]
-
-        self.find_and_write_hypervariable_regions(sample, scp_df, "intra sample high diversity regions ")
+        # scp_df = self.aa_df
+        # scp_df = scp_df[scp_df.SndAAcnt_perc_polymorphism > 0.01]
+        #
+        # self.find_and_write_hypervariable_regions(sample, scp_df, "intra sample high diversity regions ")
 
     # poi_df contains Protein and positions of interest of filtered rows
     # poi_df only only needs to contain Protein and AAPosition and you can put anything in AAPosition
@@ -245,7 +256,7 @@ class CalcDiversiMeasures:
                 'CntNonSyn': 'sum',
                 'CntSyn': 'sum',
                 'SndAAcnt_perc': 'mean',
-                'SndAAcnt_perc_filtered': 'mean',
+                'SndAAcnt_perc_polymorphism': 'mean',
                 'syn': 'sum',
                 'non_syn': 'sum',
                 'CntSnp': 'mean',
@@ -265,10 +276,6 @@ class CalcDiversiMeasures:
         self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
 
         #derived measures
-
-        #self.gene_df["SndAAcnt_perc"] = self.gene_df["SndAAcnt_sum"]/self.gene_df["AAcoverage_sum"]
-        self.gene_df["dN/dS"] = self.gene_df["CntNonSyn_sum"]/self.gene_df["CntSyn_sum"]
-
         self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
 
         #take median of non-zero values over all amino acids (alle genes)
@@ -277,10 +284,6 @@ class CalcDiversiMeasures:
 
         self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * \
             (self.gene_df["CntNonSyn_sum"] + snp_pseudo_count)/(self.gene_df["CntSyn_sum"] + snp_pseudo_count)
-
-        np.seterr(divide='ignore')
-        self.gene_df["log10_dN/dS"] = np.where(self.gene_df["dN/dS"] > 0, np.log10(self.gene_df["dN/dS"]), 0)
-        np.seterr(divide='warn')
 
         self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
 
@@ -306,7 +309,10 @@ class CalcDiversiMeasures:
 
         self.read_files(sample)
 
-        self.calc_measures(sample)
+        self.calc_measures()
+
+        #TODO: only do this in "verbose" mode?
+        self.find_and_write_local_regions(sample)
 
         self.aggregate_measures(sample)
 
