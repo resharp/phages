@@ -46,7 +46,6 @@ class MakeGenePlots:
         logging.info("start reading tables")
         self.read_gene_sample_measures()
 
-        #TODO: add read gene_annotaion
         self.read_gene_annotation()
 
         logging.info("finished reading tables")
@@ -108,7 +107,30 @@ class MakeGenePlots:
         self.plot_dir = self.sample_dir + self.dir_sep + "GenePlots"
         os.makedirs(self.plot_dir, exist_ok=True)
 
-    #https://seaborn.pydata.org/generated/seaborn.heatmap.html
+    def create_histograms(self):
+
+        #create a histogram of the occurence of genes across samples
+        data = self.gene_sample_filtered_on_quality()
+
+        #we only need the counts per gene
+
+        counts_df = data.groupby("Protein").agg(
+            {
+                'log10_pN/pS': ["count"]
+            }).reset_index()
+        counts_df.columns = ["_".join(x) for x in counts_df.columns.ravel()]
+        counts_df.rename(columns={'Protein_': 'Protein'}, inplace=True)
+
+        min = counts_df['log10_pN/pS_count'].min()
+        max = counts_df['log10_pN/pS_count'].max()
+
+        sns.distplot(counts_df[['log10_pN/pS_count']], bins=(max-min), kde=False)
+
+        plt.title("Distribution of sample presence for genes")
+        figure_name = "{}{}gene_plots.gene_sample_counts.pdf".format(self.plot_dir, self.dir_sep)
+
+        plt.savefig(figure_name)
+
     def create_heatmaps(self):
 
         #filter on quality
@@ -138,10 +160,15 @@ class MakeGenePlots:
         data = self.gene_sample_df
         data = data[data.AAcoverage_cv < 0.2]
 
-        data = data[(data.AAcoverage_perc < 1.5)]
-        data = data[(data.AAcoverage_perc > 0.5)]
+        # data = data[(data.AAcoverage_perc < 1.5)]
+        data = data[(data.AAcoverage_perc > 0.2)]
+
+        #TODO: should we also exclude samples with few values for genes left after filtering?
+        #first make distribution plot of # of genes per sample
+
         return data
 
+    #https://seaborn.pydata.org/generated/seaborn.heatmap.html
     def create_heatmap(self, data, measure, title):
 
         data = data[['Protein', 'sample', measure]]
@@ -175,7 +202,7 @@ class MakeGenePlots:
     #based on self.gene_sample_df
     #that can be further aggregated into self.gene_df
     #and then merged with self.gene_annotation.df for annotation
-    def score_genes(self):
+    def score_genes_and_output_ordered_genes_to_file(self):
 
         filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
 
@@ -202,8 +229,7 @@ class MakeGenePlots:
 
     def create_box_plots(self, min_nr_samples=3):
 
-        #now we want to make a boxplot for all genes with their log10_pN/pS
-        #or first take the top 10 with highest log10_pN/pS and the top 10 with lowest log10pN/pS
+        #box plots for log10_pN/pS
 
         #filter out the genes that do not have a minimal presence of min_nr_of_samples occurences in the samples
         filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
@@ -222,6 +248,7 @@ class MakeGenePlots:
 
         self.create_box_plot(self.gene_df, "log10_pN/pS", "all genes")
 
+        #box plots for ENTROPY
         filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean']]
@@ -287,9 +314,13 @@ class MakeGenePlots:
 
         self.create_plot_dir()
 
+        self.create_histograms()
+
         self.create_heatmaps()
 
-        self.score_genes()
+        self.score_genes_and_output_ordered_genes_to_file()
+
+        #TODO in same way: what samples have the highest entropy?
 
         #create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
         #after applying the quality filter
