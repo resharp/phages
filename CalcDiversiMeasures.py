@@ -4,6 +4,9 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns;sns.set()
+
 
 # we will calculate per gene
 #   average AA coverage
@@ -114,6 +117,36 @@ class CalcDiversiMeasures:
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
 
+    def joint_plot_for_aa_changes_and_entropy(self):
+        #here we show the AAPosition the x-axis and the entropy on the y-axis for every SCP
+        #though entropy seems to be an attribute of a sample we would like to see if there is
+
+        self.aa_df["SCP"] = 0
+        self.aa_df.loc[self.aa_df.SndAAcnt_perc_polymorphism > 0.01, "SCP"] = 1
+
+        data = self.aa_df[["Protein", "AAPosition", "TopCodon", "RefCodon", "SndAAcnt_perc_polymorphism", "SCP", "entropy"]]
+
+        genes = data.Protein.unique()
+        # for gene in genes:
+
+        for gene in ["KP06_gp44", "KP06_gp45", "KP06_gp64"]:
+            gene_data = data[data.Protein == gene]
+            len_gene = len(gene_data)
+
+            gene_data = gene_data[gene_data.SCP == 1]
+            if len(gene_data) > 0:
+                max_entropy = gene_data.entropy.max() + 0.02
+
+                sns.set(style="darkgrid")
+                tips = sns.load_dataset("tips")
+                g = sns.jointplot("AAPosition", "entropy", data=gene_data,
+                                  # kind="kde",
+                                  xlim=(0, len_gene),
+                                  ylim=(-0.01, np.where(max_entropy > 0, max_entropy, 0.5)),
+                                  marginal_kws=dict(bins=np.round(len_gene/20).astype(int), rug=True),
+                                  color="m", height=7)
+                plt.title(gene)
+                plt.show()
 
     def find_and_write_local_regions(self, sample):
 
@@ -298,8 +331,7 @@ class CalcDiversiMeasures:
         #gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
 
-    # write aggregated gene measures to new file
-    def write_measures(self, sample):
+    def write_aggregated_measures(self, sample):
 
         self.gene_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + sample + "_gene_measures.txt"
         #the gene name is in the index
@@ -311,13 +343,14 @@ class CalcDiversiMeasures:
 
         self.calc_measures()
 
+        ##self.joint_plot_for_aa_changes_and_entropy()
+
         #TODO: only do this in "verbose" mode?
         self.find_and_write_local_regions(sample)
 
         self.aggregate_measures(sample)
 
-        self.write_measures(sample)
-
+        self.write_aggregated_measures(sample)
 
 def run_calc(args_in):
 
