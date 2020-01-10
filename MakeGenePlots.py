@@ -285,7 +285,8 @@ class MakeGenePlots:
         top10_data = filter_data.head(10)
         bottom10_data = filter_data.tail(10)
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data, "sample", "entropy_mean", "all samples")
+        self.create_box_plot(combined_data, "sample", "entropy_mean",
+                             "top and bottom 10 entropy with at least {} genes".format(min_nr_samples))
 
 
     def create_box_plot(self, filter_data, agg_field, measure, title):
