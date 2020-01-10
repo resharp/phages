@@ -28,6 +28,7 @@ class MakeGenePlots:
 
     gene_sample_df = None
     gene_df = None
+    sample_df = None
     gene_anno_df = None
 
     def __init__(self, sample_dir):
@@ -227,6 +228,20 @@ class MakeGenePlots:
 
         merge_df.to_csv(self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.txt", index=False, sep='\t')
 
+    def score_samples(self):
+        filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
+
+        self.sample_df = filtered_gene_sample_df.groupby("sample").agg(
+            {
+                'log10_pN/pS': ["mean", "count", "std"]
+            ,   'entropy_mean': ["mean", "count"]
+            }).reset_index()
+
+        self.sample_df.columns = ["_".join(x) for x in self.sample_df.columns.ravel()]
+        self.sample_df.rename(columns={'sample_': 'sample'}, inplace=True)
+
+        self.sample_df = self.sample_df.sort_values(by='entropy_mean_mean', ascending=False)
+
     def create_box_plots(self, min_nr_samples=3):
 
         #box plots for log10_pN/pS
@@ -264,10 +279,13 @@ class MakeGenePlots:
         self.create_box_plot(combined_data, "Protein", "entropy_mean",
                              "top and bottom 10 internal var in at least {} samples".format(min_nr_samples))
 
-        #new aggregation per sample
+        #new aggregation per sample (min_nr_samples should now be read as min_nr_genes)
+        filter_data = self.sample_df[self.sample_df['log10_pN/pS_count'] >= min_nr_samples]
 
-        filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
-        self.create_box_plot(filter_data, "sample", "entropy_mean", "all samples")
+        top10_data = filter_data.head(10)
+        bottom10_data = filter_data.tail(10)
+        combined_data = pd.DataFrame.append(top10_data, bottom10_data)
+        self.create_box_plot(combined_data, "sample", "entropy_mean", "all samples")
 
 
     def create_box_plot(self, filter_data, agg_field, measure, title):
@@ -276,8 +294,8 @@ class MakeGenePlots:
         # data = self.gene_sample_df
 
         data = data.merge(filter_data
-                             , left_on=data["Protein"]
-                             , right_on=filter_data["Protein"]
+                             , left_on=data[agg_field]
+                             , right_on=filter_data[agg_field]
                              , how='inner')
 
         data.rename(columns={"{}_x".format(agg_field): agg_field}, inplace=True)
@@ -326,6 +344,8 @@ class MakeGenePlots:
         self.create_heatmaps()
 
         self.score_genes_and_output_ordered_genes_to_file()
+
+        self.score_samples()
 
         #TODO in same way: what samples have the highest entropy?
 
