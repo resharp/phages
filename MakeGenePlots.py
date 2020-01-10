@@ -234,58 +234,64 @@ class MakeGenePlots:
         #filter out the genes that do not have a minimal presence of min_nr_of_samples occurences in the samples
         filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
 
+        #head only works because self.gene_df is already ordered by log10_pN/pS_mean in score_genes_..()
         top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(top10_data, "log10_pN/pS",
+        self.create_box_plot(top10_data, "Protein", "log10_pN/pS",
                              "top 10 pos selection present in at least {} samples".format(min_nr_samples))
 
         bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(bottom10_data, "log10_pN/pS",
+        self.create_box_plot(bottom10_data, "Protein", "log10_pN/pS",
                              "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data, "log10_pN/pS",
+        self.create_box_plot(combined_data, "Protein", "log10_pN/pS",
                              "top and bottom 10 present in at least {} samples".format(min_nr_samples))
 
-        self.create_box_plot(self.gene_df, "log10_pN/pS", "all genes")
+        self.create_box_plot(self.gene_df, "Protein", "log10_pN/pS", "all genes")
 
         #box plots for ENTROPY
         filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean']]
-        self.create_box_plot(top10_data, "entropy_mean",
+        self.create_box_plot(top10_data, "Protein", "entropy_mean",
                              "top 10 internal var present in at least {} samples".format(min_nr_samples))
 
         bottom10_data = filter_data.tail(10)[['Protein', 'entropy_mean_mean']]
-        self.create_box_plot(bottom10_data, "entropy_mean",
+        self.create_box_plot(bottom10_data, "Protein", "entropy_mean",
                              "bottom 10 internal var present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data, "entropy_mean",
+        self.create_box_plot(combined_data, "Protein", "entropy_mean",
                              "top and bottom 10 internal var in at least {} samples".format(min_nr_samples))
 
+        #new aggregation per sample
 
-    def create_box_plot(self, filter_data, measure, title):
+        filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
+        self.create_box_plot(filter_data, "sample", "entropy_mean", "all samples")
+
+
+    def create_box_plot(self, filter_data, agg_field, measure, title):
 
         data = self.gene_sample_filtered_on_quality()
         # data = self.gene_sample_df
 
         data = data.merge(filter_data
-                             , left_on=data.Protein
-                             , right_on=filter_data.Protein
+                             , left_on=data["Protein"]
+                             , right_on=filter_data["Protein"]
                              , how='inner')
 
-        data.rename(columns={"Protein_x": "Protein"}, inplace=True)
+        data.rename(columns={"{}_x".format(agg_field): agg_field}, inplace=True)
 
-        data = data[["Protein", measure]]
+        data = data[[agg_field, measure]]
 
         #add mean of measure per gene and then merge with the original dataset
         # in order to sort the genes on the mean of the measure
-        grouped = data.groupby("Protein").mean()
+        grouped = data.groupby(agg_field).mean()
 
         data = data.merge(grouped
-                          , left_on=data.Protein
+                          , left_on=data[agg_field]
                           , right_on = grouped.index
-                          , how='inner').sort_values(["{}_y".format(measure), "Protein"], ascending=False).\
+                          , how='inner').sort_values(["{}_y".format(measure), agg_field], ascending=False).\
             rename(columns={"{}_x".format(measure): measure })
 
         plt.clf()
@@ -294,13 +300,14 @@ class MakeGenePlots:
 
         #TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         #we should probably recalculate p_N/p_S with a pseudocount
-        sns.boxplot(x=measure, y="Protein", data=data,
+        sns.boxplot(x=measure, y=agg_field, data=data,
                     whis="range", palette="vlag")
 
-        sns.swarmplot(x=measure, y="Protein", data=data,
+        sns.swarmplot(x=measure, y=agg_field, data=data,
                       size=2, color=".3", linewidth=0)
 
-        figure_name = "{}{}gene_plots.box_plot.{}.{}.pdf".format(self.plot_dir, self.dir_sep,
+        figure_name = "{}{}gene_plots.{}.box_plot.{}.{}.pdf".format(self.plot_dir, self.dir_sep,
+                                                                 agg_field,
                                                                  measure.replace("/", "_"),
                                                                  title.replace(" ", "_"))
         # plt.show()
