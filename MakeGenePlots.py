@@ -233,8 +233,9 @@ class MakeGenePlots:
 
         self.sample_df = filtered_gene_sample_df.groupby("sample").agg(
             {
-                'log10_pN/pS': ["mean", "count", "std"]
-            ,   'entropy_mean': ["mean", "count"]
+                'log10_pN/pS':      ["mean", "count", "std"]
+            ,   'entropy_mean':     ["mean", "count"]
+            ,   'AAcoverage_mean':  ["mean"]
             }).reset_index()
 
         self.sample_df.columns = ["_".join(x) for x in self.sample_df.columns.ravel()]
@@ -287,6 +288,20 @@ class MakeGenePlots:
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
         self.create_box_plot(combined_data, "sample", "entropy_mean",
                              "top and bottom 10 entropy with at least {} genes".format(min_nr_samples))
+
+        filter_data = filter_data.sort_values(by='AAcoverage_mean_mean', ascending=False)
+
+        top10_data = filter_data.head(10)
+        self.create_box_plot(top10_data, "sample", "AAcoverage_mean",
+                             "top 10 coverage with at least {} genes".format(min_nr_samples))
+
+        bottom10_data = filter_data.tail(10)
+        self.create_box_plot(bottom10_data, "sample", "AAcoverage_mean",
+                             "bottom 10 coverage with at least {} genes".format(min_nr_samples))
+
+        combined_data = pd.DataFrame.append(top10_data, bottom10_data)
+        self.create_box_plot(combined_data, "sample", "AAcoverage_mean",
+                             "top and bottom 10 coverage with at least {} genes".format(min_nr_samples))
 
 
     def create_box_plot(self, filter_data, agg_field, measure, title):
