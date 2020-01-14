@@ -30,6 +30,7 @@ class CalcDiversiMeasures:
     gene_table_name = ""
 
     sample_dir = ""
+    plot_dir = ""
 
     dir_sep = ""
     aa_df = None
@@ -116,6 +117,45 @@ class CalcDiversiMeasures:
         self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
+
+    def create_plot_dir(self, sample):
+
+        self.plot_dir = self.sample_dir + self.dir_sep + sample + self.dir_sep + "DiversiMeasures"
+        os.makedirs(self.plot_dir, exist_ok=True)
+
+    def line_plots_for_coverage(self, sample):
+
+        data = self.aa_df[["Protein", "AAPosition", "AAcoverage"]]
+        genes = data.Protein.unique()
+
+        # TODO: determine the number of genes and make a plot for every set of 6 genes
+        nr_plots = int(np.round((len(genes)/6)))
+
+        measure = "AAcoverage"
+
+        i = 0
+        for j in range(0,nr_plots):
+
+            fig, axs = plt.subplots(3,2)
+            fig.tight_layout(pad=2)
+            for row in axs:
+                for ax in row:
+                    if len(genes) > i:
+                        gene = genes[i]
+                        i = i + 1
+                        gene_data = data[data.Protein == gene]
+
+                        sns.lineplot(legend=None, data=gene_data, x="AAPosition", y=measure, ax=ax)
+                        ax.set_ylim(bottom=0)
+                        ax.set_title(gene)
+
+            start = 1 + j*6
+            end = 6 + j*6
+            plot_name = self.plot_dir + self.dir_sep + "coverage_genes_{}_{}.png".format(start, end)
+
+            # plt.show()
+            plt.savefig(plot_name)
+            plt.close()
 
     def joint_plot_for_aa_changes_and_entropy(self):
         #here we show the AAPosition the x-axis and the entropy on the y-axis for every SCP
@@ -343,7 +383,10 @@ class CalcDiversiMeasures:
 
         self.calc_measures()
 
+        self.create_plot_dir(sample)
+
         ##self.joint_plot_for_aa_changes_and_entropy()
+        self.line_plots_for_coverage(sample)
 
         #TODO: only do this in "verbose" mode?
         self.find_and_write_local_regions(sample)
