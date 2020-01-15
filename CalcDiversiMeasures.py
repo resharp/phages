@@ -118,45 +118,97 @@ class CalcDiversiMeasures:
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
 
+        self.calculate_pN_pS_sliding_window(window_size=60)
+
+    def calculate_pN_pS_sliding_window(self, window_size):
+
+        #pN/pS calculation for sliding window
+        #add simple moving averages for syn, non_syn, CntSyn and CntNonSyn
+        ext = "_SMA_{}".format(window_size)
+
+        self.aa_df["CntSyn" + ext] = self.aa_df["CntSyn"].replace(np.nan,0).rolling(window=window_size).mean()
+        self.aa_df["CntNonSyn" + ext] = self.aa_df["CntNonSyn"].replace(np.nan,0).rolling(window=window_size).mean()
+        self.aa_df["syn" + ext] = self.aa_df["syn"].replace(np.nan,0).rolling(window=window_size).mean()
+        self.aa_df["non_syn" + ext] = self.aa_df["non_syn"].replace(np.nan,0).rolling(window=window_size).mean()
+
+        #disregard values where AAPosition < window_size otherwise you get a moving average partly based on values of the previous gene
+        self.aa_df.loc[self.aa_df.AAPosition < window_size, "CntSyn" + ext] = 0
+        self.aa_df.loc[self.aa_df.AAPosition < window_size, "CntNonSyn" + ext] = 0
+        self.aa_df.loc[self.aa_df.AAPosition < window_size, "syn" + ext] = 0
+        self.aa_df.loc[self.aa_df.AAPosition < window_size, "non_syn" + ext] = 0
+
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
+        snp_pseudo_count = np.sqrt(count_snp_median) / 2
+
+        #this might result in infinity which is ok for now
+        self.aa_df["syn_ratio" + ext] = \
+            self.aa_df["syn" + ext].div(self.aa_df["non_syn" + ext])
+
+        self.aa_df["pN_pS" + ext] = self.aa_df["syn_ratio" + ext] * \
+            (self.aa_df["CntNonSyn" + ext] + snp_pseudo_count)/(self.aa_df["CntSyn" + ext] + snp_pseudo_count)
+
+        self.aa_df["log10_pN_pS" + ext] = np.log10(self.aa_df["pN_pS" + ext])
+
+        self.aa_df = self.aa_df.join(self.aa_df.groupby('Protein')['AAPosition'].max(), on='Protein', rsuffix='_max')
+
+        shift_back = int(window_size / 2)
+
+        measure = "log10_pN_pS_{}".format(window_size)
+        self.aa_df[measure] = \
+            self.aa_df["log10_pN_pS" + ext].shift(periods=-shift_back)
+
+        # make right side empty
+        self.aa_df.loc[self.aa_df.AAPosition_max - self.aa_df.AAPosition < shift_back, measure] = np.nan
+
     def create_plot_dir(self, sample):
 
         self.plot_dir = self.sample_dir + self.dir_sep + sample + self.dir_sep + "DiversiMeasures"
         os.makedirs(self.plot_dir, exist_ok=True)
 
-    def line_plots_for_coverage(self, sample):
+    def line_plots_for_coverage_and_pN_pS(self, sample):
 
-        data = self.aa_df[["Protein", "AAPosition", "AAcoverage"]]
+        self.line_plots_for_measure("AAcoverage", ylim_bottom=0)
+        self.line_plots_for_measure("log10_pN_pS_60")
+
+    def line_plots_for_measure(self, measure, ylim_bottom=None):
+
+        data = self.aa_df[["Protein", "AAPosition", "AAcoverage", "log10_pN_pS_60", "AAPosition_max"]]
         genes = data.Protein.unique()
 
         # TODO: determine the number of genes and make a plot for every set of 6 genes
         nr_plots = int(np.round((len(genes)/6)))
 
-        measure = "AAcoverage"
-
+        #we loop through the plots and subplots and then select the next gene instead of looping through the genes
         i = 0
+        #we always make one extra plot (so some of the sub plots of the last plot may be empty)
         for j in range(0,nr_plots):
 
             fig, axs = plt.subplots(3,2)
             fig.tight_layout(pad=2)
             for row in axs:
                 for ax in row:
+                    #to prevent
                     if len(genes) > i:
                         gene = genes[i]
                         i = i + 1
                         gene_data = data[data.Protein == gene]
 
+                        x_max = gene_data.AAPosition_max.max()
+
                         sns.lineplot(legend=None, data=gene_data, x="AAPosition", y=measure, ax=ax)
-                        ax.set_ylim(bottom=0)
+                        ax.set_ylim(bottom=ylim_bottom)
+                        ax.set_xlim(left=1)
+                        ax.set_xlim(right=x_max)
                         ax.set_title(gene)
 
             start = 1 + j*6
             end = 6 + j*6
-            plot_name = self.plot_dir + self.dir_sep + "coverage_genes_{}_{}.png".format(start, end)
+            plot_name = self.plot_dir + self.dir_sep + "{}_{}_{}.png".format(measure, start, end)
 
-            # plt.show()
             plt.savefig(plot_name)
             plt.close()
 
+    #TODO: also write this stuff to files
     def joint_plot_for_aa_changes_and_entropy(self):
         #here we show the AAPosition the x-axis and the entropy on the y-axis for every SCP
         #though entropy seems to be an attribute of a sample we would like to see if there is
@@ -386,7 +438,7 @@ class CalcDiversiMeasures:
         self.create_plot_dir(sample)
 
         ##self.joint_plot_for_aa_changes_and_entropy()
-        self.line_plots_for_coverage(sample)
+        self.line_plots_for_coverage_and_pN_pS(sample)
 
         #TODO: only do this in "verbose" mode?
         self.find_and_write_local_regions(sample)
