@@ -31,6 +31,9 @@ class MakeGenePlots:
     sample_df = None
     gene_anno_df = None
 
+    bin_sample_df = None
+    bin_df = None
+
     def __init__(self, sample_dir):
 
         self.sample_dir = sample_dir
@@ -45,20 +48,22 @@ class MakeGenePlots:
     def read_files(self):
 
         logging.info("start reading tables")
-        self.read_gene_sample_measures()
 
+        self.gene_sample_df = self.read_and_concat_sample_measures("_gene_measures.txt")
         self.read_gene_annotation()
+
+        self.bin_sample_df = self.read_and_concat_sample_measures("_bin_measures.txt")
 
         logging.info("finished reading tables")
 
-    def read_gene_sample_measures(self):
+    def read_and_concat_sample_measures(self, file_name_ext):
 
         subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir()]
         samples = []
 
         for subfolder in subfolders:
             sample = os.path.basename(subfolder)
-            sample_name = subfolder + self.dir_sep + sample + "_gene_measures.txt"
+            sample_name = subfolder + self.dir_sep + sample + file_name_ext
 
             if os.path.isfile(sample_name) and os.path.getsize(sample_name) > 0:
                 logging.info("processing {}".format(sample_name))
@@ -68,7 +73,7 @@ class MakeGenePlots:
                                          )
                 samples.append(gene_sample_df)
 
-        self.gene_sample_df = pd.concat(samples)
+        return pd.concat(samples)
 
     def read_gene_annotation(self):
 
@@ -347,13 +352,81 @@ class MakeGenePlots:
         # plt.show()
         plt.savefig(figure_name)
 
+    def create_line_plots_for_pN_pS(self):
+        # make line plots based on
+        # aggregration of bin_sample_df
+        # to bin_df
+
+        nr_lines = len(self.bin_sample_df)
+
+        filtered_bin_data = \
+            self.bin_sample_df[(self.bin_sample_df.AAcoverage_perc > 0.2) & (self.bin_sample_df.AAcoverage_cv < 0.2)]
+
+        nr_filtered_lines = len(filtered_bin_data)
+
+        # to do: do not take mean of log but instead log of mean
+        data = filtered_bin_data.groupby(["Protein", "AAPosition"]).agg(
+            {
+                'log10_pN_pS_60': ["mean"]
+            }).reset_index()
+        data.columns = ["_".join(x) for x in data.columns.ravel()]
+        data.rename(columns={'Protein_': 'Protein'}, inplace=True)
+        data.rename(columns={'AAPosition_': 'AAPosition'}, inplace=True)
+
+        data.rename(columns={'log10_pN_pS_60_mean': 'log10_pN_pS_60'}, inplace=True)
+
+        data = data.join(data.groupby('Protein')['AAPosition'].max(), on='Protein', rsuffix='_max')
+
+        self.line_plots_for_measure(data, "log10_pN_pS_60")
+
+        debug = True
+
+    def line_plots_for_measure(self, data, measure, ylim_bottom=None):
+
+        genes = data.Protein.unique()
+
+        # TODO: determine the number of genes and make a plot for every set of 6 genes
+        nr_plots = int(np.round((len(genes)/6)))
+
+        #we loop through the plots and subplots and then select the next gene instead of looping through the genes
+        i = 0
+        #we always make one extra plot (so some of the sub plots of the last plot may be empty)
+        for j in range(0,nr_plots):
+
+            fig, axs = plt.subplots(3,2)
+            fig.tight_layout(pad=2)
+            for row in axs:
+                for ax in row:
+                    #to prevent
+                    if len(genes) > i:
+                        gene = genes[i]
+                        i = i + 1
+                        gene_data = data[data.Protein == gene]
+
+                        x_max = gene_data.AAPosition_max.max()
+
+                        sns.lineplot(legend=None, data=gene_data, x="AAPosition", y=measure, ax=ax)
+                        ax.set_ylim(bottom=ylim_bottom)
+                        ax.set_xlim(left=1)
+                        ax.set_xlim(right=x_max)
+                        ax.set_title(gene)
+
+            start = 1 + j*6
+            end = 6 + j*6
+            plot_name = self.plot_dir + self.dir_sep + "{}_{}_{}.png".format(measure, start, end)
+
+            plt.savefig(plot_name)
+            plt.close()
+
     def do_analysis(self, min_nr_samples):
 
         self.read_files()
 
-        self.prepare_data_for_plots()
-
         self.create_plot_dir()
+
+        self.create_line_plots_for_pN_pS()
+
+        self.prepare_data_for_plots()
 
         self.create_histograms()
 
