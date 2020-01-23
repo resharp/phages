@@ -105,8 +105,8 @@ class MakeGenePlots:
 
         #make binary plot for positive selection or conservation
         self.gene_sample_df['positive_selection'] = 0
-        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] > 0.1, 'positive_selection'] = 1
-        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] < -0.1, 'positive_selection'] = -1
+        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] > -0.3, 'positive_selection'] = 1
+        self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] < -0.7, 'positive_selection'] = -1
 
     def create_plot_dir(self):
 
@@ -143,8 +143,8 @@ class MakeGenePlots:
         data = self.gene_sample_filtered_on_quality()
 
         # make a heatmap of the log10_pN/pS based on multiple samples
-        self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (blue = positive selection)")
-        self.create_heatmap(data, "positive_selection", "log10_pN/pS either > 0.1 or < - 0.1")
+        self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (red=diverging, blue=conserved)")
+        self.create_heatmap(data, "positive_selection", "log10_pN/pS either > -0.3 or < - 0.7")
 
         self.create_heatmap(data, "SndAAcnt_perc_polymorphism_mean", "Within sample AA variation in genes")
 
@@ -197,7 +197,7 @@ class MakeGenePlots:
         data.columns = ["_".join(x.split("_")[3:]) for x in data.columns]
 
         plt.clf()  # clear the current figure (always do this before any new plot)
-        ax = sns.heatmap(data, cmap="YlGnBu", annot=False)
+        ax = sns.heatmap(data, cmap="seismic", annot=False)
         plt.title(title)
 
         figure_name = "{}{}gene_plots.heat_map.{}.pdf".format(self.plot_dir, self.dir_sep, measure.replace("/", "_"))
