@@ -39,15 +39,16 @@ class CalcDiversiMeasures:
 
     def __init__(self, sample_dir):
 
-        logging.basicConfig(filename='CalcDiversiMeasures.log', filemode='w', format='%(asctime)s - %(message)s',
-                            level=logging.DEBUG)
-
         self.sample_dir = sample_dir
 
         if os.name == 'nt':
             self.dir_sep = "\\"
         else:
             self.dir_sep = "/"
+
+        logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'CalcDiversiMeasures.log', filemode='w',
+                            format='%(asctime)s - %(levelname)s - %(message)s',
+                            level=logging.DEBUG)
 
     def read_files(self, sample):
         logging.debug("start reading tables")
@@ -56,7 +57,7 @@ class CalcDiversiMeasures:
 
         self.read_codon_table()
 
-        self.integrate_tables()
+        self.integrate_tables(sample)
 
         logging.debug("finished reading tables")
 
@@ -80,7 +81,24 @@ class CalcDiversiMeasures:
                                     ,   sep=","
                                     ,   usecols=[0,2,3,4])
 
-    def integrate_tables(self):
+    def integrate_tables(self, sample):
+
+        # sometimes we have mapped reads and they do not map in the coding regions
+        # therefore, the column RefCodon is empty (as are all other columns) and we cannot join and should
+        # stop processing to prevent further errors with merging of columns
+        nr_unique_refcodons = self.aa_df.RefCodon.nunique()
+        if np.isnan(nr_unique_refcodons) or nr_unique_refcodons < 2:
+            error_message = "processing will be terminated to prevent errors. " + \
+                            "not enough unique refcodons (={nr}) ".format(nr=nr_unique_refcodons) + \
+                           "for sample {sample}".format(sample=sample)
+
+            logging.error(error_message)
+            raise Exception(error_message)
+
+        else:
+            info_message = "nr of unique refcodons {nr} ".format(nr=nr_unique_refcodons) + \
+                           "for sample {sample}".format(sample=sample)
+            logging.info(info_message)
 
         # also interesting: check codon usage signature in genes?
         # because we do not want our measures be biased for codon usage
@@ -465,6 +483,7 @@ class CalcDiversiMeasures:
         self.write_aggregated_measures(sample)
 
         self.write_bin_measures(sample)
+
 
 def run_calc(args_in):
 
