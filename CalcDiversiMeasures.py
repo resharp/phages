@@ -476,7 +476,8 @@ class CalcDiversiMeasures:
         # self.line_plots_for_coverage_and_pN_pS(sample)
 
         #TODO: only do this in "verbose" mode?
-        self.find_and_write_local_regions(sample)
+        # this is still too buggy for the current pipeline (when there are not so many reads mapped)
+        # self.find_and_write_local_regions(sample)
 
         self.aggregate_measures(sample)
 
