@@ -81,14 +81,14 @@ class AnnotateCrassGenomes:
                                        )
 
         # print(self.hmm_hits_df.dtypes)
-
         print("number of hmm hits: {nr_hits}".format(nr_hits=len(self.hmm_hits_df)))
 
         self.yutin_genes_df = pd.read_csv(self.yutin_genes_name
                                           , sep="\t"
                                           , index_col=None
-                                          , usecols=range(0,23))
-
+                                          , usecols=range(0,23)
+                                          )
+        # print(self.yutin_genes_df.dtypes)
         print("number of conserved genes: {nr_genes}".format(nr_genes=len(self.yutin_genes_df)))
 
         self.crass_genes_df= pd.read_csv(self.crass_genes_name
@@ -97,11 +97,10 @@ class AnnotateCrassGenomes:
                                          , index_col=None
                                          , usecols=[0,1,2,4,6,7,8,9,10]
                                          , names=["protein","start","end","annotation"
-                                                    ,"yutin_gene_nr","region","occurs_in_fam","my_annot","remark2"])
+                                                    ,"yutin_gene_nr","region","occurs_in_fam","my_annot","remark2"]
+                                         , dtype={"yutin_gene_nr": "str"})
+        # we had to change yutin_gene_nr to dtype object in order to join it with yutin_genes_df.yutin_gene_nr (e.g.46N)
         print("number of proteins in annotated crAssphage: {nr_proteins}".format(nr_proteins=len(self.crass_genes_df)))
-
-        debug = "True"
-        pass
 
     def join_files(self):
 
@@ -121,12 +120,20 @@ class AnnotateCrassGenomes:
         merge_df = self.ref_genes_df.merge(filtered_hits,
                                 left_on=self.ref_genes_df.gene,
                                 right_on=filtered_hits.gene,
-                                how="left").drop(["key_0","meta"], axis=1)
+                                how="left").drop(["key_0","meta", "gene_y"], axis=1)
         merge_df.rename(columns={'gene_x': 'gene'}, inplace=True)
 
         print("check nr of lines in merge_df: {nr_lines}".format(nr_lines=len(merge_df)))
         # merge_df.rename(columns={'gene_x': 'gene'}, inplace=True)
 
+        merge_df = merge_df.merge(self.yutin_genes_df[["gene_fam","yutin_gene_nr","gene_annot"]],
+                                  left_on=merge_df.gene_fam,
+                                  right_on=self.yutin_genes_df.gene_fam,
+                                  how="left").drop(["key_0"], axis=1)
+        merge_df = merge_df.merge(self.crass_genes_df,
+                                  left_on=merge_df.yutin_gene_nr,
+                                  right_on=self.crass_genes_df.yutin_gene_nr,
+                                  how="left").drop(["key_0"], axis=1)
         debug = "True"
 
         out_table_name = self.genome_dir+ self.dir_sep + "out_gene_annotations.txt"
