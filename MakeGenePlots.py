@@ -45,24 +45,25 @@ class MakeGenePlots:
         logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'MakeGenePlots.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.INFO)
 
-    def read_files(self):
+    def read_files(self, ref):
 
         logging.info("start reading tables")
 
-        self.gene_sample_df = self.read_and_concat_sample_measures("_gene_measures.txt")
+        self.gene_sample_df = self.read_and_concat_sample_measures(ref, "_gene_measures.txt")
         self.read_gene_annotation()
 
-        self.bin_sample_df = self.read_and_concat_sample_measures("_bin_measures.txt")
+        self.bin_sample_df = self.read_and_concat_sample_measures(ref, "_bin_measures.txt")
 
         logging.info("finished reading tables")
 
-    def read_and_concat_sample_measures(self, file_name_ext):
+    def read_and_concat_sample_measures(self, ref, file_name_ext):
 
-        subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir()]
+        subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and ref in f.name]
         samples = []
 
         for subfolder in subfolders:
             sample = os.path.basename(subfolder)
+            sample = sample.split("_")[0]
             sample_name = subfolder + self.dir_sep + sample + file_name_ext
 
             if os.path.isfile(sample_name) and os.path.getsize(sample_name) > 0:
@@ -108,9 +109,9 @@ class MakeGenePlots:
         self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] > -0.3, 'positive_selection'] = 1
         self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] < -0.7, 'positive_selection'] = -1
 
-    def create_plot_dir(self):
+    def create_plot_dir(self, ref):
 
-        self.plot_dir = self.sample_dir + self.dir_sep + "GenePlots"
+        self.plot_dir = self.sample_dir + self.dir_sep + ref + "_" + "GenePlots"
         os.makedirs(self.plot_dir, exist_ok=True)
 
     def create_histograms(self):
@@ -130,7 +131,7 @@ class MakeGenePlots:
         min = counts_df['log10_pN/pS_count'].min()
         max = counts_df['log10_pN/pS_count'].max()
 
-        sns.distplot(counts_df[['log10_pN/pS_count']], bins=(max-min), kde=False)
+        sns.distplot(counts_df[['log10_pN/pS_count']], bins=(max-min+1), kde=False)
 
         plt.title("Distribution of sample presence for genes")
         figure_name = "{}{}gene_plots.gene_sample_counts.pdf".format(self.plot_dir, self.dir_sep)
@@ -418,11 +419,11 @@ class MakeGenePlots:
             plt.savefig(plot_name)
             plt.close()
 
-    def do_analysis(self, min_nr_samples):
+    def do_analysis(self, min_nr_samples, ref):
 
-        self.read_files()
+        self.read_files(ref)
 
-        self.create_plot_dir()
+        self.create_plot_dir(ref)
 
         self.create_line_plots_for_pN_pS()
 
@@ -448,6 +449,8 @@ def do_analysis(args_in):
 
     parser.add_argument("-d", "--sample_dir", dest="sample_dir",
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
+    parser.add_argument("-r", "--ref", dest="ref",
+                        help="reference genome id", metavar="[ref]", required=True)
 
     parser.add_argument("-ns", "--min_nr_samples", dest="min_nr_samples", metavar="[min_nr_samples]", type=int,
                         help="minimal nr of samples for genes")
@@ -456,6 +459,7 @@ def do_analysis(args_in):
 
     print("Start running MakeGenePlots")
     print("sample_dir: " + args.sample_dir)
+    print("reference gemome id (ref): " + args.ref)
 
     if not args.min_nr_samples:
         args.min_nr_samples = 3
@@ -463,13 +467,14 @@ def do_analysis(args_in):
 
     make = MakeGenePlots(args.sample_dir)
 
-    make.do_analysis(args.min_nr_samples)
+    make.do_analysis(args.min_nr_samples, args.ref)
 
 if __name__ == "__main__":
     do_analysis(sys.argv[1:])
 
 #TODO for testing, do not use in production
-# sample_dir = r"D:\17 Dutihl Lab\_tools\diversitools"
-# do_analysis(["-d", sample_dir, "-ns", "4"])
+# sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
+# ref="crassphage_refseq"
+# do_analysis(["-d", sample_dir, "-r", ref, "-ns", "1"])
 
 
