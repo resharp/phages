@@ -64,7 +64,7 @@ def download_samples(lineage):
             if len(sample.studies) > 0:
                 study = sample.studies[0]
                 study_accession = study.accession
-                study_abstract = study.study_abstract.replace("\n\r", " ").replace("\n", " ")
+                study_abstract = study.study_abstract.replace("\r\n", " ").replace("\n", " ")
 
             df_samples.loc[sample.accession] = [
                 sample.sample_name, study_accession, study_abstract
