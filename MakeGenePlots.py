@@ -23,6 +23,7 @@ import sys
 class MakeGenePlots:
 
     sample_dir = ""
+    ref_dir = ""
     dir_sep = ""
     plot_dir = ""
 
@@ -34,9 +35,10 @@ class MakeGenePlots:
     bin_sample_df = None
     bin_df = None
 
-    def __init__(self, sample_dir):
+    def __init__(self, sample_dir, ref_dir):
 
         self.sample_dir = sample_dir
+        self.ref_dir = ref_dir
         if os.name == 'nt':
             self.dir_sep = "\\"
         else:
@@ -50,7 +52,7 @@ class MakeGenePlots:
         logging.info("start reading tables")
 
         self.gene_sample_df = self.read_and_concat_sample_measures(ref, "_gene_measures.txt")
-        self.read_gene_annotation()
+        self.read_gene_annotation(ref)
 
         self.bin_sample_df = self.read_and_concat_sample_measures(ref, "_bin_measures.txt")
 
@@ -76,15 +78,14 @@ class MakeGenePlots:
 
         return pd.concat(samples)
 
-    def read_gene_annotation(self):
+    def read_gene_annotation(self, ref):
 
-        #TODO: also make the annotation file a parameter of MakeGenePlots
-        gene_anno_file_name = self.sample_dir + self.dir_sep + "crassphage_gene_list.txt"
+        gene_anno_file_name = self.ref_dir + self.dir_sep + "{ref}_gene_list.txt".format(ref=ref)
 
         self.gene_anno_df = pd.read_csv(gene_anno_file_name
                                         ,   sep='\t'
                                         ,   header=None
-                                        ,   usecols=[0,4]
+                                        ,   usecols=[0,1]
                                         ,   names=["Protein", "Annotation"]
                                         )
         pass
@@ -452,6 +453,9 @@ def do_analysis(args_in):
     parser.add_argument("-r", "--ref", dest="ref",
                         help="reference genome id", metavar="[ref]", required=True)
 
+    parser.add_argument("-rd", "--ref_dir", dest="ref_dir",
+                        help="directory reference genomes", metavar="[ref_dir]", required=True)
+
     parser.add_argument("-ns", "--min_nr_samples", dest="min_nr_samples", metavar="[min_nr_samples]", type=int,
                         help="minimal nr of samples for genes")
 
@@ -465,7 +469,7 @@ def do_analysis(args_in):
         args.min_nr_samples = 3
     print("minimal nr of samples = {}".format(args.min_nr_samples))
 
-    make = MakeGenePlots(args.sample_dir)
+    make = MakeGenePlots(args.sample_dir, args.ref_dir)
 
     make.do_analysis(args.min_nr_samples, args.ref)
 
@@ -475,6 +479,7 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref="crassphage_refseq"
-# do_analysis(["-d", sample_dir, "-r", ref, "-ns", "1"])
+# rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
+# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "1"])
 
 
