@@ -3,6 +3,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 import argparse
+import numpy as np
 
 # we need to read the files and join the information in the following order:
 # from Guerin dir
@@ -31,6 +32,7 @@ class AnnotateCrassGenomes:
     hmm_hits_df = None
     yutin_genes_df = None
     crass_genes_df = None
+    merge_df = None
 
     def __init__(self, genome_dir, annotation_dir):
 
@@ -51,7 +53,7 @@ class AnnotateCrassGenomes:
 
         self.join_files()
 
-        pass
+        self.write_files()
 
     def read_files(self):
         self.ref_genes_name = self.genome_dir + self.dir_sep + self.ref_genes_name
@@ -134,11 +136,33 @@ class AnnotateCrassGenomes:
                                   left_on=merge_df.yutin_gene_nr,
                                   right_on=self.crass_genes_df.yutin_gene_nr,
                                   how="left").drop(["key_0"], axis=1)
+
         debug = "True"
 
-        out_table_name = self.genome_dir+ self.dir_sep + "out_gene_annotations.txt"
+        self.merge_df = merge_df
 
-        merge_df.to_csv(path_or_buf=out_table_name, sep='\t', index=False)
+
+    def write_files(self):
+
+        out_table_name = self.genome_dir + self.dir_sep + "out_gene_annotations.txt"
+
+        self.merge_df.to_csv(path_or_buf=out_table_name, sep='\t', index=False)
+
+        # now also write one file for every ref genome with only the annotations
+        # with no annotation, make it "hypothetical protein"
+
+        genomes = self.merge_df.genome.unique()
+
+        for genome in genomes:
+
+            gene_list_name = self.genome_dir + self.dir_sep + "{genome}_gene_list.txt".format(genome=genome)
+
+            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_annot"]]
+
+            genes_df.loc[genes_df.gene_annot.isnull(), "gene_annot"] = "unknown function"
+
+            genes_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
+            debug = "True"
 
 
 def annotate(args_in):

@@ -1,89 +1,89 @@
-KP06_gp01	0	97065	NC_024711.1	hypothetical protein
-KP06_gp02	453	1203	NC_024711.1	putative ssb single stranded DNA-binding protein
-KP06_gp03	1183	1312	NC_024711.1	hypothetical protein
-KP06_gp04	1407	1713	NC_024711.1	hypothetical protein
-KP06_gp05	2373	2550	NC_024711.1	hypothetical protein
-KP06_gp06	2691	3318	NC_024711.1	hypothetical protein
-KP06_gp07	3485	3665	NC_024711.1	hypothetical protein
-KP06_gp08	3677	4259	NC_024711.1	hypothetical protein
-KP06_gp09	4637	5000	NC_024711.1	hypothetical protein
-KP06_gp10	5159	5732	NC_024711.1	hypothetical protein
-KP06_gp11	5724	6003	NC_024711.1	hypothetical protein
-KP06_gp12	6146	6479	NC_024711.1	hypothetical protein
-KP06_gp13	6485	6956	NC_024711.1	hypothetical protein
-KP06_gp14	6955	8416	NC_024711.1	putative SF1 helicase
-KP06_gp15	8405	8960	NC_024711.1	putative Uracyl-DNA glycosylase
-KP06_gp16	8952	11280	NC_024711.1	putative DNA polymerase family B
-KP06_gp17	11276	12662	NC_024711.1	putative SWI2/SNF2 ATPase, non-canonical Walker A motif
-KP06_gp18	12714	13647	NC_024711.1	putative RecT, phage RecT recombinase
-KP06_gp19	13726	14554	NC_024711.1	hypothetical protein
-KP06_gp20	14663	15683	NC_024711.1	putative ssb single stranded DNA-binding protein
-KP06_gp21	15705	17001	NC_024711.1	putative DnaG family primase
-KP06_gp22	17029	17371	NC_024711.1	hypothetical protein
-KP06_gp23	17367	17928	NC_024711.1	hypothetical protein
-KP06_gp24	17920	19138	NC_024711.1	putative ATP-dependent DNA ligase
-KP06_gp25	19118	19502	NC_024711.1	hypothetical protein
-KP06_gp26	19776	20502	NC_024711.1	putative Deoxynucleoside monophosphate kinase
-KP06_gp27	20498	20882	NC_024711.1	putative C4-type zinc finger protein
-KP06_gp28	20868	21738	NC_024711.1	putative flavin-dependent thymidylate synthase
-KP06_gp29	21721	21988	NC_024711.1	hypothetical protein
-KP06_gp30	21971	22109	NC_024711.1	hypothetical protein
-KP06_gp31	22108	22888	NC_024711.1	putative iphovirus Gp157 family protein, GAM-like host nuclease inhibitor
-KP06_gp32	22964	23084	NC_024711.1	hypothetical protein
-KP06_gp33	23085	24147	NC_024711.1	putative Protein of unknown function (DUF932)
-KP06_gp34	24166	25851	NC_024711.1	putative Dut dUTPase (with intron insertion)
-KP06_gp35	24558	25413	NC_024711.1	putative Intron-encoded HNH endonuclease
-KP06_gp36	25831	26059	NC_024711.1	putative Uncharacterized DUF1653 family protein
-KP06_gp37	26055	26325	NC_024711.1	putative Truncated thioredoxin
-KP06_gp38	26454	27048	NC_024711.1	hypothetical protein
-KP06_gp39	27044	27323	NC_024711.1	putative Thioredoxin
-KP06_gp40	27326	27491	NC_024711.1	hypothetical protein
-KP06_gp41	27506	27956	NC_024711.1	putative Phage protein of N4_gp49/Sf6_gp66 (pfam13876) family
-KP06_gp42	28321	28504	NC_024711.1	hypothetical protein
-KP06_gp43	28717	29272	NC_024711.1	putative Plasmid replication initiation protein RepL
-KP06_gp44	29357	41570	NC_024711.1	putative RNAP catalytic subunit fused to unknown RNAP subunit
-KP06_gp45	41700	47574	NC_024711.1	putative RNAP associated protein fused to zincin protease
-KP06_gp46	47575	50149	NC_024711.1	hypothetical protein
-KP06_gp47	50139	52713	NC_024711.1	hypothetical protein
-KP06_gp48	52833	53628	NC_024711.1	hypothetical protein
-KP06_gp49	53624	58136	NC_024711.1	putative Phage stabilization protein (pfam11134), P22_gp10 homolog
-KP06_gp50	58138	59068	NC_024711.1	putative Tail tubular protein, P22_gp4
-KP06_gp51	59039	60002	NC_024711.1	putative Integration host factor IHF subunit, histone-like protein
-KP06_gp52	60005	60710	NC_024711.1	putative Integration host factor IHF subunit, histone-like protein
-KP06_gp53	60711	61038	NC_024711.1	hypothetical protein
-KP06_gp54	61170	62631	NC_024711.1	putative Phage tail-collar fibre protein (DUF3751)
-KP06_gp55	62632	63136	NC_024711.1	putative Tail needle protein, P22_gp26-like
-KP06_gp56	63217	63559	NC_024711.1	putative Zincin superfamily protease
-KP06_gp57	63767	64097	NC_024711.1	hypothetical protein
-KP06_gp58	64167	64743	NC_024711.1	hypothetical protein
-KP06_gp59	64747	65134	NC_024711.1	hypothetical protein
-KP06_gp60	65138	65654	NC_024711.1	hypothetical protein
-KP06_gp61	65694	66468	NC_024711.1	putative tail protein
-KP06_gp62	66574	67678	NC_024711.1	putative tail protein
-KP06_gp63	67677	69363	NC_024711.1	putative tail protein, similar to UGP_077
-KP06_gp64	69448	73333	NC_024711.1	putativeBacon (Bacteroidetes-Associated Carbohydrate-binding) domain containing protein
-KP06_gp65	73336	74167	NC_024711.1	putative tail protein
-KP06_gp66	74192	76283	NC_024711.1	putative Tail fiber protein
-KP06_gp67	76285	78892	NC_024711.1	putative tail protein, similar to UGP_073
-KP06_gp68	78955	79483	NC_024711.1	hypothetical protein
-KP06_gp69	79479	79719	NC_024711.1	hypothetical protein
-KP06_gp70	79728	80262	NC_024711.1	hypothetical protein
-KP06_gp71	80372	81236	NC_024711.1	putative Tail sheath protein
-KP06_gp72	81255	81954	NC_024711.1	hypothetical protein
-KP06_gp73	81956	83114	NC_024711.1	hypothetical protein
-KP06_gp74	83139	84612	NC_024711.1	putative Major capsid protein
-KP06_gp75	84631	85942	NC_024711.1	hypothetical protein
-KP06_gp76	86284	88696	NC_024711.1	putative Portal protein
-KP06_gp77	88714	90970	NC_024711.1	putative Terminase large subunit
-KP06_gp78	90976	91303	NC_024711.1	hypothetical protein
-KP06_gp79	91316	91586	NC_024711.1	hypothetical protein
-KP06_gp80	91614	92043	NC_024711.1	putative Lyzozyme
-KP06_gp81	92046	92244	NC_024711.1	hypothetical protein
-KP06_gp82	92247	92598	NC_024711.1	putative Membrane protein, contains peptidoglycan-binding domain
-KP06_gp83	92594	93602	NC_024711.1	putative PD-(D/E)XK superfamily nuclease
-KP06_gp84	93698	94274	NC_024711.1	hypothetical protein
-KP06_gp85	94257	94824	NC_024711.1	hypothetical protein
-KP06_gp86	94941	95481	NC_024711.1	hypothetical protein
-KP06_gp87	95490	95631	NC_024711.1	hypothetical protein
-KP06_gp88	96137	96794	NC_024711.1	putative Plasmid replication initiation protein RepL
-
+KP06_gp01	hypothetical protein
+KP06_gp02	putative ssb single stranded DNA-binding protein
+KP06_gp03	hypothetical protein
+KP06_gp04	hypothetical protein
+KP06_gp05	hypothetical protein
+KP06_gp06	hypothetical protein
+KP06_gp07	hypothetical protein
+KP06_gp08	hypothetical protein
+KP06_gp09	hypothetical protein
+KP06_gp10	hypothetical protein
+KP06_gp11	hypothetical protein
+KP06_gp12	hypothetical protein
+KP06_gp13	hypothetical protein
+KP06_gp14	putative SF1 helicase
+KP06_gp15	putative Uracyl-DNA glycosylase
+KP06_gp16	putative DNA polymerase family B
+KP06_gp17	putative SWI2/SNF2 ATPase, non-canonical Walker A motif
+KP06_gp18	putative RecT, phage RecT recombinase
+KP06_gp19	hypothetical protein
+KP06_gp20	putative ssb single stranded DNA-binding protein
+KP06_gp21	putative DnaG family primase
+KP06_gp22	hypothetical protein
+KP06_gp23	hypothetical protein
+KP06_gp24	putative ATP-dependent DNA ligase
+KP06_gp25	hypothetical protein
+KP06_gp26	putative Deoxynucleoside monophosphate kinase
+KP06_gp27	putative C4-type zinc finger protein
+KP06_gp28	putative flavin-dependent thymidylate synthase
+KP06_gp29	hypothetical protein
+KP06_gp30	hypothetical protein
+KP06_gp31	putative iphovirus Gp157 family protein, GAM-like host nuclease inhibitor
+KP06_gp32	hypothetical protein
+KP06_gp33	putative Protein of unknown function (DUF932)
+KP06_gp34_1	putative Dut dUTPase (with intron insertion)
+KP06_gp34_2	putative Dut dUTPase (with intron insertion)
+KP06_gp35	putative Intron-encoded HNH endonuclease
+KP06_gp36	putative Uncharacterized DUF1653 family protein
+KP06_gp37	putative Truncated thioredoxin
+KP06_gp38	hypothetical protein
+KP06_gp39	putative Thioredoxin
+KP06_gp40	hypothetical protein
+KP06_gp41	putative Phage protein of N4_gp49/Sf6_gp66 (pfam13876) family
+KP06_gp42	membrane protein
+KP06_gp43	putative Plasmid replication initiation protein RepL
+KP06_gp44	putative RNAP catalytic subunit fused to unknown RNAP subunit
+KP06_gp45	putative RNAP associated protein fused to zincin protease
+KP06_gp46	hypothetical protein
+KP06_gp47	hypothetical protein
+KP06_gp48	hypothetical protein
+KP06_gp49	putative Phage stabilization protein (pfam11134), P22_gp10 homolog
+KP06_gp50	putative Tail tubular protein, P22_gp4
+KP06_gp51	putative Integration host factor IHF subunit, histone-like protein
+KP06_gp52	putative Integration host factor IHF subunit, histone-like protein
+KP06_gp53	hypothetical protein
+KP06_gp54	putative Phage tail-collar fibre protein (DUF3751)
+KP06_gp55	putative Tail needle protein, P22_gp26-like
+KP06_gp56	putative Zincin superfamily protease
+KP06_gp57	membrane protein
+KP06_gp58	hypothetical protein
+KP06_gp59	hypothetical protein
+KP06_gp60	hypothetical protein
+KP06_gp61	putative tail protein
+KP06_gp62	putative tail protein
+KP06_gp63	putative tail protein, similar to UGP_077
+KP06_gp64	putativeBacon (Bacteroidetes-Associated Carbohydrate-binding) domain containing protein
+KP06_gp65	putative tail protein
+KP06_gp66	putative Tail fiber protein
+KP06_gp67	putative tail protein, similar to UGP_073
+KP06_gp68	hypothetical protein
+KP06_gp69	hypothetical protein
+KP06_gp70	hypothetical protein
+KP06_gp71	putative Tail sheath protein
+KP06_gp72	hypothetical protein
+KP06_gp73	hypothetical protein
+KP06_gp74	putative Major capsid protein
+KP06_gp75	hypothetical protein
+KP06_gp76	putative Portal protein
+KP06_gp77	putative Terminase large subunit
+KP06_gp78	hypothetical protein
+KP06_gp79	hypothetical protein
+KP06_gp80	putative Lyzozyme
+KP06_gp81	hypothetical protein
+KP06_gp82	putative Membrane protein, contains peptidoglycan-binding domain
+KP06_gp83	putative PD-(D/E)XK superfamily nuclease
+KP06_gp84	hypothetical protein
+KP06_gp85	hypothetical protein
+KP06_gp86	hypothetical protein
+KP06_gp87	hypothetical protein
+KP06_gp88	putative Plasmid replication initiation protein RepL
