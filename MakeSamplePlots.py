@@ -29,6 +29,7 @@ class MakeSamplePlots:
     sample_stats_df = None
     ref_meta_df = None
     merge_df = None
+    genus_sorted_df = None
 
     def __init__(self, sample_dir):
 
@@ -108,26 +109,18 @@ class MakeSamplePlots:
         merge_df.rename(columns={'ref_x': 'ref'}, inplace=True)
         assert(len(self.sample_stats_df) == len(merge_df))
 
+        nr_of_mappings = len(merge_df)
+        logging.info("Number of mappings analyzed: {nr_of_mappings}".format(nr_of_mappings=nr_of_mappings))
         logging.info("total number of mapped reads: {mapped}".format(mapped=merge_df.mapped.sum()))
-
-        print(len(merge_df))
 
         self.merge_df = merge_df
 
     def make_bar_plot(self):
 
-        df = self.merge_df.groupby(["ref","genus"]).agg(
-            {
-                'mapped': ["sum", "std"]
-            }).reset_index()
-        df.columns = ["_".join(x) for x in df.columns.ravel()]
-        df.rename(columns={'genus_': 'genus', "ref_":"ref"}, inplace=True)
-
-        df = df.sort_values('mapped_sum', ascending=False)
-
         figure_name = "{}{}sample_plots.totals.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
 
-        sns.barplot(df.genus, df.mapped_sum, log=True)
+        sns.barplot(self.genus_sorted_df.genus, self.genus_sorted_df.mapped_sum, log=True
+                    , order=self.genus_sorted_df.genus)
         plt.title("total reads mapped for genera")
         plt.savefig(figure_name)
         plt.clf()
@@ -137,9 +130,27 @@ class MakeSamplePlots:
         # merge_df = self.merge_df
         self.merge_df = self.merge_df[self.merge_df.mapped != 0]
 
+        nr_mappings = len(self.merge_df)
+        logging.info("nr of non-zero mappings among samples: {nr_mappings}".format(nr_mappings=nr_mappings))
+
         self.merge_df["log10_mapped"] = np.log10(self.merge_df.mapped)
 
         self.merge_df["genus"] = self.merge_df.apply(self.shorten_genus, axis=1)
+
+        self.sort_genus_according_to_abundance()
+
+    def sort_genus_according_to_abundance(self):
+
+        df = self.merge_df.groupby(["ref", "genus"]).agg(
+            {
+                'mapped': ["sum", "std"]
+            }).reset_index()
+        df.columns = ["_".join(x) for x in df.columns.ravel()]
+        df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
+
+        self.genus_sorted_df = df.sort_values('mapped_sum', ascending=False)
+
+        debug = "True"
 
     # specific ERP005989 enrichment
     # prepare data plot for the project that contains metadata about age in the sample name
@@ -167,13 +178,22 @@ class MakeSamplePlots:
     def make_category_plot(self):
 
         sns.catplot(x="genus", y="log10_mapped", kind="swarm", data=self.merge_df, hue="age_cat",
-                    palette=sns.color_palette("coolwarm", 4))
+                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
 
         plt.title("log abundance of mapped reads for one ref genome per genus")
 
         figure_name = "{}{}sample_plots.categories.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
-
         plt.savefig(figure_name)
+        plt.clf()
+
+        sns.catplot(x="genus", y="log10_mapped", kind="box", data=self.merge_df, hue="age_cat",
+                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
+
+        plt.title("log abundance of mapped reads for one ref genome per genus")
+
+        figure_name = "{}{}sample_plots.box.categories.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
+        plt.savefig(figure_name)
+        plt.clf()
 
     def create_plot_dir(self):
 
