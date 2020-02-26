@@ -127,8 +127,11 @@ class MakeSamplePlots:
 
     def prepare_data(self):
 
-        # merge_df = self.merge_df
         self.merge_df = self.merge_df[self.merge_df.mapped != 0]
+
+        # normalize to nr mapped reads per 50 million total reads
+        self.merge_df['mapped_norm'] = 50e6 * self.merge_df.mapped / \
+                                    (self.merge_df.nonmapped + self.merge_df.mapped)
 
         nr_mappings = len(self.merge_df)
         logging.info("nr of non-zero mappings among samples: {nr_mappings}".format(nr_mappings=nr_mappings))
@@ -180,32 +183,28 @@ class MakeSamplePlots:
         return row.genus.replace("genus_", "")
 
     # this is a specific plot for the project that contains metadata about age in the sample name
-    def make_category_plot(self):
+    def make_category_plots(self):
 
-        sns.catplot(x="genus", y="log10_mapped", kind="swarm", data=self.merge_df, hue="age_cat",
-                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
+        self.make_category_plot("swarm")
+        self.make_category_plot("box")
 
-        plt.title("log abundance of mapped reads for one ref genome per genus")
-
-        figure_name = "{}{}sample_plots.categories.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
-        plt.savefig(figure_name)
-        plt.clf()
-
+    def make_category_plot(self, type_plot):
         sns.catplot(x="genus", y="log10_mapped", kind="box", data=self.merge_df, hue="age_cat",
                     palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
 
         plt.title("log abundance of mapped reads for one ref genome per genus")
 
-        figure_name = "{}{}sample_plots.box.categories.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
+        figure_name = "{}{}sample_plots.categories.mapped.genus.{type}.pdf".format(self.plot_dir, self.dir_sep,
+                                                                                   type=type_plot)
         plt.savefig(figure_name)
         plt.clf()
 
-    def make_scatter_plot(self):
+    def make_scatter_plots(self):
         # total number of mappings between age 4 and 12 months and mother?
         # might also make a mixed scatterplot matrix
 
         df_families = self.merge_df.pivot_table(
-            values="mapped",
+            values="mapped_norm",
             index=["family", "genus"],
             columns="age_cat"
         ).reset_index()
@@ -219,15 +218,29 @@ class MakeSamplePlots:
                                     '3. 12 months': '12 months',
                                     '4. mother': 'mother'}, inplace=True)
 
-        df_families = df_families[(df_families.genus == "1") | (df_families.genus == "5")]
-        # df_families = df_families[(df_families.genus == "1")]
+        genera = df_families.genus.unique().tolist()
 
-        s_plot = sns.scatterplot(x="4 months", y="12 months", data=df_families, hue="genus_")
+        for genus in genera:
+            self.make_scatter_plot(df_families, genus, "mother", "baby")
+            self.make_scatter_plot(df_families, genus, "baby", "4 months")
+            self.make_scatter_plot(df_families, genus, "4 months", "12 months")
 
+    def make_scatter_plot(self, data, genus, x_value, y_value):
+
+        data = data[data.genus == genus]
+
+        # s_plot = sns.scatterplot(x=x_value, y=y_value, data=data, hue="genus_")
+        s_plot = sns.scatterplot(x=x_value, y=y_value, data=data)
         s_plot.set(xscale="log")
         s_plot.set(yscale="log")
 
-        figure_name = "{}{}sample_plots.scatter.mapped.age.pdf".format(self.plot_dir, self.dir_sep)
+        plt.title("genus {genus}: normalized mapped reads/50 million total reads".format(genus=genus))
+
+        y_value = y_value.replace(" ", "_")
+        figure_name = "{dir}{sep}sample_plots.scatter.{x_value}.{y_value}.genus_{genus}.png".format(
+            dir=self.plot_dir, sep=self.dir_sep,
+            x_value=x_value, y_value=y_value, genus=genus
+        )
         plt.savefig(figure_name)
         plt.clf()
 
@@ -250,9 +263,9 @@ class MakeSamplePlots:
 
         self.prepare_specifics_for_project()
 
-        self.make_category_plot()
+        self.make_category_plots()
 
-        self.make_scatter_plot()
+        self.make_scatter_plots()
 
 
 def do_analysis(args_in):
