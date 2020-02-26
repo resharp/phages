@@ -158,6 +158,7 @@ class MakeSamplePlots:
 
         merge_df = self.merge_df
         merge_df["age_cat_short"] = merge_df.apply(self.age_category, axis=1)
+        merge_df["family"] = merge_df.apply(self.family, axis=1)
 
         merge_df.loc[merge_df.age_cat_short == "B", "age_cat"] = "1. baby"
         merge_df.loc[merge_df.age_cat_short == "4M", "age_cat"] = "2. 4 months"
@@ -165,6 +166,10 @@ class MakeSamplePlots:
         merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "4. mother"
 
         self.merge_df = merge_df.sort_values("age_cat")
+
+    @staticmethod
+    def family(row):
+        return row.sample_name.split("_")[0]
 
     @staticmethod
     def age_category(row):
@@ -195,6 +200,37 @@ class MakeSamplePlots:
         plt.savefig(figure_name)
         plt.clf()
 
+    def make_scatter_plot(self):
+        # total number of mappings between age 4 and 12 months and mother?
+        # might also make a mixed scatterplot matrix
+
+        df_families = self.merge_df.pivot_table(
+            values="mapped",
+            index=["family", "genus"],
+            columns="age_cat"
+        ).reset_index()
+
+        # extra derived field: hue does not work with strings that only contains numbers
+        df_families["genus_"] = "genus_" + df_families["genus"]
+
+        # rename because order does not matter anymore
+        df_families.rename(columns={'1. baby': 'baby',
+                                    '2. 4 months': '4 months',
+                                    '3. 12 months': '12 months',
+                                    '4. mother': 'mother'}, inplace=True)
+
+        df_families = df_families[(df_families.genus == "1") | (df_families.genus == "5")]
+        # df_families = df_families[(df_families.genus == "1")]
+
+        s_plot = sns.scatterplot(x="4 months", y="12 months", data=df_families, hue="genus_")
+
+        s_plot.set(xscale="log")
+        s_plot.set(yscale="log")
+
+        figure_name = "{}{}sample_plots.scatter.mapped.age.pdf".format(self.plot_dir, self.dir_sep)
+        plt.savefig(figure_name)
+        plt.clf()
+
     def create_plot_dir(self):
 
         self.plot_dir = self.sample_dir + self.dir_sep + "SamplePlots"
@@ -215,6 +251,8 @@ class MakeSamplePlots:
         self.prepare_specifics_for_project()
 
         self.make_category_plot()
+
+        self.make_scatter_plot()
 
 
 def do_analysis(args_in):
