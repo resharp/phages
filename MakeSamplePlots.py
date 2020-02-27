@@ -188,14 +188,14 @@ class MakeSamplePlots:
         self.make_category_plot("swarm")
         self.make_category_plot("box")
 
-    def make_category_plot(self, type_plot):
-        sns.catplot(x="genus", y="log10_mapped", kind="box", data=self.merge_df, hue="age_cat",
+    def make_category_plot(self, kind):
+        sns.catplot(x="genus", y="log10_mapped", kind=kind, data=self.merge_df, hue="age_cat",
                     palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
 
         plt.title("log abundance of mapped reads for one ref genome per genus")
 
-        figure_name = "{}{}sample_plots.categories.mapped.genus.{type}.pdf".format(self.plot_dir, self.dir_sep,
-                                                                                   type=type_plot)
+        figure_name = "{}{}sample_plots.categories.mapped.genus.{kind}.pdf".format(self.plot_dir, self.dir_sep,
+                                                                                   kind=kind)
         plt.savefig(figure_name)
         plt.clf()
 
@@ -224,6 +224,7 @@ class MakeSamplePlots:
             self.make_scatter_plot(df_families, genus, "mother", "baby")
             self.make_scatter_plot(df_families, genus, "baby", "4 months")
             self.make_scatter_plot(df_families, genus, "4 months", "12 months")
+            self.make_scatter_plot(df_families, genus, "mother", "12 months")
 
     def make_scatter_plot(self, data, genus, x_value, y_value):
 
