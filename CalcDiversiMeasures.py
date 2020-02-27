@@ -21,8 +21,11 @@ import seaborn as sns;sns.set()
 #   entropy
 #   ..
 #
-#   we do this on one sample and output a file with measures per gene
-#   there is no filtering here
+# we do this on one sample and output a file with measures per gene
+# there is no filtering here
+#
+# the parameter ref (e.g. cs_ms_21) is only used for determination of read/write directory:
+# [sample]_[ref] e.g. ERR526006_cs_ms_21
 class CalcDiversiMeasures:
 
     aa_table_name = ""
@@ -63,7 +66,7 @@ class CalcDiversiMeasures:
 
     def read_aa_table(self, sample, ref):
 
-        self.aa_table_name = self.sample_dir + self.dir_sep + sample + "_" + ref + self.dir_sep + sample + "_AA_clean.txt"
+        self.aa_table_name = self.sample_ref_dir(sample, ref) + sample + "_AA_clean.txt"
 
         self.aa_df = pd.read_csv(self.aa_table_name
                                  ,  sep='\t'
@@ -74,6 +77,9 @@ class CalcDiversiMeasures:
         # Protein	AAPosition	RefAA	RefSite	RefCodon	FstCodonPos	SndCodonPos	TrdCodonPos
         # CntNonSyn	CntSyn	NbStop	TopAA	TopAAcnt	SndAA	SndAAcnt	TrdAA	TrdAAcnt
         # TopCodon	TopCodoncnt	SndCodon	SndCodoncnt	TrdCodon	TrdCodoncnt	AAcoverage
+
+    def sample_ref_dir(self, sample, ref):
+        return self.sample_dir + self.dir_sep + sample + "_" + ref + self.dir_sep
 
     def read_codon_table(self):
         self.codon_table_name = self.sample_dir + self.dir_sep + "codon_syn_non_syn_probabilities.txt"
@@ -184,13 +190,12 @@ class CalcDiversiMeasures:
         # round all values to four decimals
         self.aa_df = self.aa_df.round(decimals=4)
 
+    def create_plot_dir(self, sample, ref):
 
-    def create_plot_dir(self, sample):
-
-        self.plot_dir = self.sample_dir + self.dir_sep + sample + self.dir_sep + "DiversiMeasures"
+        self.plot_dir = self.sample_ref_dir(sample, ref) + "DiversiMeasures"
         os.makedirs(self.plot_dir, exist_ok=True)
 
-    def line_plots_for_coverage_and_pN_pS(self, sample):
+    def line_plots_for_coverage_and_pn_ps(self):
 
         self.line_plots_for_measure("AAcoverage", ylim_bottom=0)
         self.line_plots_for_measure("log10_pN_pS_60")
@@ -203,16 +208,16 @@ class CalcDiversiMeasures:
         # TODO: determine the number of genes and make a plot for every set of 6 genes
         nr_plots = int(np.round((len(genes)/6)))
 
-        #we loop through the plots and subplots and then select the next gene instead of looping through the genes
+        # we loop through the plots and subplots and then select the next gene instead of looping through the genes
         i = 0
-        #we always make one extra plot (so some of the sub plots of the last plot may be empty)
+        # we always make one extra plot (so some of the sub plots of the last plot may be empty)
         for j in range(0,nr_plots):
 
             fig, axs = plt.subplots(3,2)
             fig.tight_layout(pad=2)
             for row in axs:
                 for ax in row:
-                    #to prevent
+                    # to prevent
                     if len(genes) > i:
                         gene = genes[i]
                         i = i + 1
@@ -233,16 +238,16 @@ class CalcDiversiMeasures:
             plt.savefig(plot_name)
             plt.close()
 
-    #TODO: also write this stuff to files
     def joint_plot_for_aa_changes_and_entropy(self):
-        #here we show the AAPosition the x-axis and the entropy on the y-axis for every SCP
-        #though entropy seems to be an attribute of a sample we would like to see if there is
+        # here we show the AAPosition the x-axis and the entropy on the y-axis for every SCP
+        # though entropy seems to be an attribute of a sample we would like to see if there is
 
         self.aa_df["SCP"] = 0
         self.aa_df.loc[self.aa_df.SndAAcnt_perc_polymorphism > 0.01, "SCP"] = 1
 
         data = self.aa_df[["Protein", "AAPosition", "TopCodon", "RefCodon", "SndAAcnt_perc_polymorphism", "SCP", "entropy"]]
 
+        # to do: do this for all genes in verbose mode?
         genes = data.Protein.unique()
         # for gene in genes:
 
@@ -263,13 +268,16 @@ class CalcDiversiMeasures:
                                   marginal_kws=dict(bins=np.round(len_gene/20).astype(int), rug=True),
                                   color="m", height=7)
                 plt.title(gene)
-                plt.show()
 
-    def find_and_write_local_regions(self, sample):
+                figure_name = self.plot_dir + self.dir_sep + "joint_plot_{gene}.png".format(gene=gene)
 
-        #now we want to determine the distances between SNPs in self.aa_df
-        #and then take the 5 percentile shortest distances to identify regions that are close
-        #for now we determine SNP as non-empty RefCodon unequal to non-empty TopCodon
+                plt.savefig(figure_name)
+
+    def find_and_write_local_regions(self, sample, ref):
+
+        # now we want to determine the distances between SNPs in self.aa_df
+        # and then take the 5 percentile shortest distances to identify regions that are close
+        # for now we determine SNP as non-empty RefCodon unequal to non-empty TopCodon
 
         # SCP "single codon polymorphism" = difference between TopCodon and RefCodon
         scp_df = self.aa_df
@@ -277,9 +285,9 @@ class CalcDiversiMeasures:
         scp_df = scp_df[scp_df.RefCodon.notnull()]
         scp_df = scp_df[scp_df.TopCodon != scp_df.RefCodon]
 
-        self.find_and_write_hypervariable_regions(sample, scp_df, "non syn regions compared to ref")
+        self.find_and_write_hypervariable_regions(sample, ref, scp_df, "non syn regions compared to ref")
 
-        #TODO: reconsider, finding high peaks of entropy might be interesting
+        # TODO: reconsider, finding high peaks of entropy might be interesting
         # however, it will not find broad ranges of high entropy (we have to find some balance for the height_percentile
         # and the perceptile in find_and_write_hypervariable_regions depending on our question)
         height_percentile = 95
@@ -288,21 +296,16 @@ class CalcDiversiMeasures:
         entropy_df = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc_polymorphism", "entropy"]]
         entropy_df = entropy_df[(entropy_df.entropy > entropy_cutoff)]
 
-        self.find_and_write_hypervariable_regions(sample, entropy_df, "high entropy regions")
+        self.find_and_write_hypervariable_regions(sample, ref, entropy_df, "high entropy regions")
 
-        #we should also be able to do the same for any other positions
-        #for example for distances between within-sample variations
-
-        # scp_df = self.aa_df
-        # scp_df = scp_df[scp_df.SndAAcnt_perc_polymorphism > 0.01]
-        #
-        # self.find_and_write_hypervariable_regions(sample, scp_df, "intra sample high diversity regions ")
+        # we should also be able to do the same for any other positions
+        # for example for distances between within-sample variations
 
     # poi_df contains Protein and positions of interest of filtered rows
     # poi_df only only needs to contain Protein and AAPosition and you can put anything in AAPosition
     # however, for debugging purposes, you might want to add filter fields like RefCodon and TopCodon
     # that have contributed to the determination of the positions of interest
-    def find_and_write_hypervariable_regions(self, sample, poi_df, title):
+    def find_and_write_hypervariable_regions(self, sample, ref, poi_df, title):
 
         # poi_df = poi_df[["Protein", "AAPosition", "RefCodon", "TopCodon"]].reset_index()
         poi_df = poi_df[["Protein", "AAPosition"]].reset_index()
@@ -315,32 +318,32 @@ class CalcDiversiMeasures:
         poi_df.rename(columns={'index': 'PoiPosition'}, inplace=True)
         poi_df['PoiPosition'] = poi_df['PoiPosition'] + 1 #+1 to correct for 0-based result of reset_index()
 
-        #distance_bw is the backward distance
+        # distance_bw is the backward distance
         poi_df['distance_bw'] = poi_df['AAPositionGenome'].diff()
-        #distance_fw is the forward distance
+        # distance_fw is the forward distance
         poi_df['distance_fw'] = poi_df['distance_bw'].shift(-1)
 
-        #these next two lines are the core of the method: determine the 5% percentile
-        #of the distance distribution between positions of interest
+        # these next two lines are the core of the method: determine the 5% percentile
+        # of the distance distribution between positions of interest
         percentile = 5
         distance_cutoff = np.percentile(poi_df[poi_df['distance_bw'].notnull()].distance_bw, percentile)
 
-        #for experimenting with manually set distance cut-offs, not determined by percentile
-        #TODO ************************
-        #distance_cutoff = 1
+        # for experimenting with manually set distance cut-offs, not determined by percentile
+        # TODO ************************
+        # distance_cutoff = 1
 
-        #apply filter on distance cutoff between POIs (positions-of-interest)
+        # apply filter on distance cutoff between POIs (positions-of-interest)
         poi_df = poi_df[(poi_df.distance_bw <= distance_cutoff) | (poi_df.distance_fw <= distance_cutoff)]
 
-        #PoiDistance = the distance between FILTERED rows
-        # => PoiDistance 1 means that these SCPs should be joined in a hypervariable region according to distance cut-off
+        # PoiDistance = the distance between FILTERED rows
+        # =>PoiDistance 1 means that these SCPs should be joined in a hypervariable region according to distance cut-off
         # e.g. when the cut-off is set at 2 the "distance" between rows can be 2, and still the PoiDistance is 1
-        #first calculate the backward distance
+        # first calculate the backward distance
         poi_df['PoiDistance_bw'] = poi_df['PoiPosition'].diff()
-        #forward distance is just the backward distance of the next row
+        # forward distance is just the backward distance of the next row
         poi_df['PoiDistance_fw'] = poi_df['PoiDistance_bw'].shift(-1)
 
-        #now filter out just the joining regions
+        # now filter out just the joining regions
         poi_df = poi_df[(poi_df['PoiDistance_fw'] <= 1) | (poi_df['PoiDistance_bw'] <= 1)]
 
         #TODO: poi_df might also be used to calculate overlap over multiple samples
@@ -355,25 +358,25 @@ class CalcDiversiMeasures:
             # example of positions: [2,3,4,5,19,20] -> should result in two regions [2,3,4,5] and [19,20]
             # if the distance_cutoff is < the distance between pos 5 and 19
             positions = row["positions"]
-            #initialize previous position in such a way that the first condition will hold and a region will be started
+            # initialize previous position in such a way that the first condition will hold and a region will be started
             old_pos = positions[0] - distance_cutoff
-            #always start a new region for each gene
+            # always start a new region for each gene
             region = []
             for pos in positions:
                 if (pos <= old_pos + distance_cutoff):
                     region.append(pos)
                 else:
-                    #first finish the region
+                    # first finish the region
                     if len(region) > 0:
                         first_aa_pos = region[0]
                         last_aa_pos = region[-1]
                         data_for_df.append([row["Protein"], first_aa_pos, last_aa_pos])
-                    #then start a new region
+                    # then start a new region
                     region = []
                     region.append(pos)
-                #save previous position
+                # save previous position
                 old_pos = pos
-            #finish the last region
+            # finish the last region
             if len(region) > 0:
                 first_aa_pos = region[0]
                 last_aa_pos = region[-1]
@@ -385,16 +388,16 @@ class CalcDiversiMeasures:
 
         new_gene_poi_df["length"] = new_gene_poi_df["AAPositionEnd"] - new_gene_poi_df["AAPositionStart"] + 1
 
-        gene_region_table_name = self.sample_dir + self.dir_sep + sample + self.dir_sep + \
+        gene_region_table_name = self.sample_ref_dir(sample, ref) + \
                                  sample + "_gene_" + title.replace(" ", "_") + ".txt"
         new_gene_poi_df.to_csv(gene_region_table_name, sep='\t', index=False)
 
-    #aggregate measures
+    # aggregate measures
     def aggregate_measures(self, sample):
 
-        #mean coverage of all genes
+        # mean coverage of all genes
 
-        #TODO add CntSnp median over all genes
+        # TODO add CntSnp median over all genes
         genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
 
         self.gene_df = self.aa_df.groupby("Protein").agg(
@@ -414,8 +417,8 @@ class CalcDiversiMeasures:
             }
         )
 
-        #remove multi-index set on column axis
-        #https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
+        # remove multi-index set on column axis
+        # https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
 
         self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
@@ -425,10 +428,10 @@ class CalcDiversiMeasures:
         self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='unsigned', errors='coerce')
         self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
 
-        #derived measures
+        # derived measures
         self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
 
-        #take median of non-zero values over all amino acids (alle genes)
+        # take median of non-zero values over all amino acids (alle genes)
         count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
         snp_pseudo_count = np.sqrt(count_snp_median) / 2
 
@@ -437,26 +440,26 @@ class CalcDiversiMeasures:
 
         self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
 
-        #quality measures
+        # quality measures
         self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
-        #coefficient of variation for a gene
+        # coefficient of variation for a gene
         self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
 
-        #round all floats to four decimals
+        # round all floats to four decimals
         self.gene_df = self.gene_df.round(decimals=4)
 
-        #gene output table should contain sample (for later integrating over multiple samples)
+        # gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
 
     def write_aggregated_measures(self, sample, ref):
 
-        self.gene_table_name = self.sample_dir + self.dir_sep + sample + "_" + ref + self.dir_sep + sample + "_gene_measures.txt"
-        #the gene name is in the index
+        self.gene_table_name = self.sample_ref_dir(sample, ref) + sample + "_gene_measures.txt"
+        # the gene name is in the index
         self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
 
     def write_bin_measures(self, sample, ref):
 
-        bin_measure_name = self.sample_dir + self.dir_sep + sample + "_" + ref + self.dir_sep + sample + "_bin_measures.txt"
+        bin_measure_name = self.sample_ref_dir(sample, ref) + sample + "_bin_measures.txt"
 
         self.aa_df['sample'] = sample
         data = self.aa_df[['sample', 'Protein', 'AAPosition', 'AAcoverage', 'entropy', 'log10_pN_pS_60']]
@@ -475,14 +478,16 @@ class CalcDiversiMeasures:
 
         self.calc_measures()
 
-        self.create_plot_dir(sample)
+        self.create_plot_dir(sample, ref)
 
-        ##self.joint_plot_for_aa_changes_and_entropy()
-        # self.line_plots_for_coverage_and_pN_pS(sample)
+        verbose = True
+        if verbose:
+            self.joint_plot_for_aa_changes_and_entropy()
+            self.line_plots_for_coverage_and_pn_ps()
 
-        #TODO: only do this in "verbose" mode?
-        # this is still too buggy for the current pipeline (when there are not so many reads mapped)
-        # self.find_and_write_local_regions(sample)
+            #TODO: only do this in "verbose" mode?
+            # this is still too buggy for the current pipeline (when there are not so many reads mapped)
+            self.find_and_write_local_regions(sample, ref)
 
         self.aggregate_measures(sample)
 
@@ -545,15 +550,15 @@ def run_calc(args_in):
                 logging.debug("processing {}".format(sample_name))
                 calc.run_calc(sample, args.ref)
 
-if __name__ == "__main__":
-    run_calc(sys.argv[1:])
+# if __name__ == "__main__":
+#     run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
-# sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
-# ref="crassphage_refseq"
+sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
+ref = "crassphage_refseq"
 # #run all samples
 # run_calc(["-d", sample_dir, "-r", ref, "-a"])
 
 #or run one sample, or a list of
-# sample = "ERR525804"
-# run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
+sample = "ERR525804"
+run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
