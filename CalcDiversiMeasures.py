@@ -480,7 +480,7 @@ class CalcDiversiMeasures:
 
         self.create_plot_dir(sample, ref)
 
-        verbose = True
+        verbose = False
         if verbose:
             self.joint_plot_for_aa_changes_and_entropy()
             self.line_plots_for_coverage_and_pn_ps()
@@ -550,15 +550,15 @@ def run_calc(args_in):
                 logging.debug("processing {}".format(sample_name))
                 calc.run_calc(sample, args.ref)
 
-# if __name__ == "__main__":
-#     run_calc(sys.argv[1:])
+if __name__ == "__main__":
+    run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
-sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
-ref = "crassphage_refseq"
+# sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
+# ref = "crassphage_refseq"
 # #run all samples
 # run_calc(["-d", sample_dir, "-r", ref, "-a"])
 
 #or run one sample, or a list of
-sample = "ERR525804"
-run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
+# sample = "ERR525804"
+# run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
