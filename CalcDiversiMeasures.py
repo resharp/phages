@@ -143,9 +143,9 @@ class CalcDiversiMeasures:
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
 
-        self.calculate_pN_pS_sliding_window(window_size=60)
+        self.calculate_pn_ps_sliding_window(window_size=60)
 
-    def calculate_pN_pS_sliding_window(self, window_size):
+    def calculate_pn_ps_sliding_window(self, window_size):
 
         # pN/pS calculation for sliding window
         # add simple moving averages for syn, non_syn, CntSyn and CntNonSyn
@@ -195,6 +195,88 @@ class CalcDiversiMeasures:
         self.plot_dir = self.sample_ref_dir(sample, ref) + "DiversiMeasures"
         os.makedirs(self.plot_dir, exist_ok=True)
 
+    # aggregate measures
+    def aggregate_measures(self, sample):
+
+        # mean coverage of all genes
+
+        # TODO add CntSnp median over all genes
+        genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
+
+        self.gene_df = self.aa_df.groupby("Protein").agg(
+            {
+                'AAcoverage': ["mean", "std", "sum"],
+                'TopAAcnt': ["mean", "std", "sum"],
+                'SndAAcnt': ["mean", "std", "sum"],
+                'TrdAAcnt': ["mean", "std", "sum"],
+                'CntNonSyn': 'sum',
+                'CntSyn': 'sum',
+                'SndAAcnt_perc': 'mean',
+                'SndAAcnt_perc_polymorphism': 'mean',
+                'syn': 'sum',
+                'non_syn': 'sum',
+                'CntSnp': 'mean',
+                'entropy': 'mean'
+            }
+        )
+
+        # remove multi-index set on column axis
+        # https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
+        self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
+
+        self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.CntSyn_sum = pd.to_numeric(self.gene_df.CntSyn_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.TopAAcnt_sum = pd.to_numeric(self.gene_df.TopAAcnt_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='unsigned', errors='coerce')
+        self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
+
+        # derived measures
+        self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
+
+        # take median of non-zero values over all amino acids (alle genes)
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
+        snp_pseudo_count = np.sqrt(count_snp_median) / 2
+
+        self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * \
+            (self.gene_df["CntNonSyn_sum"] + snp_pseudo_count)/(self.gene_df["CntSyn_sum"] + snp_pseudo_count)
+
+        self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
+
+        # quality measures
+        self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
+        # coefficient of variation for a gene
+        self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
+
+        # round all floats to four decimals
+        self.gene_df = self.gene_df.round(decimals=4)
+
+        # gene output table should contain sample (for later integrating over multiple samples)
+        self.gene_df["sample"] = sample
+
+    def write_aggregated_measures(self, sample, ref):
+
+        self.gene_table_name = self.sample_ref_dir(sample, ref) + sample + "_gene_measures.txt"
+        # the gene name is in the index
+        self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
+
+    def write_bin_measures(self, sample, ref):
+
+        bin_measure_name = self.sample_ref_dir(sample, ref) + sample + "_bin_measures.txt"
+
+        self.aa_df['sample'] = sample
+        data = self.aa_df[['sample', 'Protein', 'AAPosition', 'AAcoverage', 'entropy', 'log10_pN_pS_60']]
+
+        # TODO: also join self.gene_df and add
+        # AAcoverage_perc	AAcoverage_cv
+        # in order to filter on it in further data integration steps
+        data = data.join(self.gene_df[["AAcoverage_perc", "AAcoverage_cv"]],
+                  on='Protein', rsuffix='_gene')
+
+        data.to_csv(path_or_buf=bin_measure_name, sep='\t', index=False)
+
+    # now here is a region with verbose code that is not part of the main data analysis
+    #region verbose
     def line_plots_for_coverage_and_pn_ps(self):
 
         self.line_plots_for_measure("AAcoverage", ylim_bottom=0)
@@ -392,85 +474,7 @@ class CalcDiversiMeasures:
                                  sample + "_gene_" + title.replace(" ", "_") + ".txt"
         new_gene_poi_df.to_csv(gene_region_table_name, sep='\t', index=False)
 
-    # aggregate measures
-    def aggregate_measures(self, sample):
-
-        # mean coverage of all genes
-
-        # TODO add CntSnp median over all genes
-        genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
-
-        self.gene_df = self.aa_df.groupby("Protein").agg(
-            {
-                'AAcoverage': ["mean", "std", "sum"],
-                'TopAAcnt': ["mean", "std", "sum"],
-                'SndAAcnt': ["mean", "std", "sum"],
-                'TrdAAcnt': ["mean", "std", "sum"],
-                'CntNonSyn': 'sum',
-                'CntSyn': 'sum',
-                'SndAAcnt_perc': 'mean',
-                'SndAAcnt_perc_polymorphism': 'mean',
-                'syn': 'sum',
-                'non_syn': 'sum',
-                'CntSnp': 'mean',
-                'entropy': 'mean'
-            }
-        )
-
-        # remove multi-index set on column axis
-        # https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
-        self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
-
-        self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
-        self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='unsigned', errors='coerce')
-        self.gene_df.CntSyn_sum = pd.to_numeric(self.gene_df.CntSyn_sum, downcast='unsigned', errors='coerce')
-        self.gene_df.TopAAcnt_sum = pd.to_numeric(self.gene_df.TopAAcnt_sum, downcast='unsigned', errors='coerce')
-        self.gene_df.SndAAcnt_sum = pd.to_numeric(self.gene_df.SndAAcnt_sum, downcast='unsigned', errors='coerce')
-        self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
-
-        # derived measures
-        self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
-
-        # take median of non-zero values over all amino acids (alle genes)
-        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
-        snp_pseudo_count = np.sqrt(count_snp_median) / 2
-
-        self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * \
-            (self.gene_df["CntNonSyn_sum"] + snp_pseudo_count)/(self.gene_df["CntSyn_sum"] + snp_pseudo_count)
-
-        self.gene_df["log10_pN/pS"] = np.where(self.gene_df["pN/pS"] > 0, np.log10(self.gene_df["pN/pS"]), 0)
-
-        # quality measures
-        self.gene_df["AAcoverage_perc"] = self.gene_df.AAcoverage_mean / genome_coverage_mean
-        # coefficient of variation for a gene
-        self.gene_df["AAcoverage_cv"] = self.gene_df.AAcoverage_std / self.gene_df.AAcoverage_mean
-
-        # round all floats to four decimals
-        self.gene_df = self.gene_df.round(decimals=4)
-
-        # gene output table should contain sample (for later integrating over multiple samples)
-        self.gene_df["sample"] = sample
-
-    def write_aggregated_measures(self, sample, ref):
-
-        self.gene_table_name = self.sample_ref_dir(sample, ref) + sample + "_gene_measures.txt"
-        # the gene name is in the index
-        self.gene_df.to_csv(path_or_buf=self.gene_table_name, sep='\t')
-
-    def write_bin_measures(self, sample, ref):
-
-        bin_measure_name = self.sample_ref_dir(sample, ref) + sample + "_bin_measures.txt"
-
-        self.aa_df['sample'] = sample
-        data = self.aa_df[['sample', 'Protein', 'AAPosition', 'AAcoverage', 'entropy', 'log10_pN_pS_60']]
-
-        # TODO: also join self.gene_df and add
-        # AAcoverage_perc	AAcoverage_cv
-        # in order to filter on it in further data integration steps
-        data = data.join(self.gene_df[["AAcoverage_perc", "AAcoverage_cv"]],
-                  on='Protein', rsuffix='_gene')
-
-        data.to_csv(path_or_buf=bin_measure_name, sep='\t', index=False)
+    #endregion verbose
 
     def run_calc(self, sample, ref):
 
@@ -485,7 +489,6 @@ class CalcDiversiMeasures:
             self.joint_plot_for_aa_changes_and_entropy()
             self.line_plots_for_coverage_and_pn_ps()
 
-            #TODO: only do this in "verbose" mode?
             # this is still too buggy for the current pipeline (when there are not so many reads mapped)
             self.find_and_write_local_regions(sample, ref)
 
