@@ -7,18 +7,19 @@ import pandas as pd
 import seaborn as sns;sns.set()
 import sys
 
-#MakeGenePlots
+# MakeGenePlots
 # create multiple heatmaps
-#   fst with the log pN/pS values
-#   snd with the missing genes (just 0/1 for clarity)
-#   trd distribution plots [integration over structural genes or other categories]
+#   1st with the log pN/pS values
+#   2nd with the missing genes (just 0/1 for clarity)
+#   3rd distribution plots [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
 #   we aggregate them to gene level (aggregation over all samples)
 #   therefore we load all files and merge them into one dataframe
 #
-#masking missing values in heatmaps:
-#https://github.com/mwaskom/seaborn/issues/375
+# masking missing values in heatmaps:
+# https://github.com/mwaskom/seaborn/issues/375
+
 
 class MakeGenePlots:
 
@@ -92,10 +93,10 @@ class MakeGenePlots:
 
     def prepare_data_for_plots(self):
 
-        #here we can prepare the data further for displaying purposes
-        #it could also have been done in CalcDiversiMeasures
+        # here we can prepare the data further for displaying purposes
+        # it could also have been done in CalcDiversiMeasures
 
-        #we want to see the missing genes, and missing genes are if there are no mappings or hardly any
+        # we want to see the missing genes, and missing genes are if there are no mappings or hardly any
         self.gene_sample_df['missing_gene'] = 0
         self.gene_sample_df.loc[self.gene_sample_df.AAcoverage_perc < 0.02 , 'missing_gene'] = 1
         self.gene_sample_df.loc[np.isnan(self.gene_sample_df.AAcoverage_perc), 'missing_gene'] = 1
@@ -105,7 +106,7 @@ class MakeGenePlots:
 
         # data_debug = self.gene_df[['sample','Protein', 'AAcoverage_perc', 'missing_gene', 'double_coverage']]
 
-        #make binary plot for positive selection or conservation
+        # make binary plot for positive selection or conservation
         self.gene_sample_df['positive_selection'] = 0
         self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] > -0.3, 'positive_selection'] = 1
         self.gene_sample_df.loc[self.gene_sample_df["log10_pN/pS"] < -0.7, 'positive_selection'] = -1
@@ -117,10 +118,10 @@ class MakeGenePlots:
 
     def create_histograms(self):
 
-        #create a histogram of the occurence of genes across samples
+        # create a histogram of the occurence of genes across samples
         data = self.gene_sample_filtered_on_quality()
 
-        #we only need the counts per gene
+        # we only need the counts per gene
 
         counts_df = data.groupby("Protein").agg(
             {
@@ -141,7 +142,7 @@ class MakeGenePlots:
 
     def create_heatmaps(self):
 
-        #filter on quality
+        # filter on quality
         data = self.gene_sample_filtered_on_quality()
 
         # make a heatmap of the log10_pN/pS based on multiple samples
@@ -165,18 +166,21 @@ class MakeGenePlots:
 
     def gene_sample_filtered_on_quality(self):
 
+        # to do: we should reconsider the coverage rules
+        # maybe we would like to have at least a certain coverage depth e.g. 10x with a minimum of 95% horizontal
+        # coverage PER GENE. We have to prepare this information in CalcDiversiMeasures
         data = self.gene_sample_df
         data = data[data.AAcoverage_cv < 0.2]
 
         # data = data[(data.AAcoverage_perc < 1.5)]
         data = data[(data.AAcoverage_perc > 0.2)]
 
-        #TODO: should we also exclude samples with few values for genes left after filtering?
-        #first make distribution plot of # of genes per sample
+        # TODO: should we also exclude samples with few values for genes left after filtering?
+        # first make distribution plot of # of genes per sample
 
         return data
 
-    #https://seaborn.pydata.org/generated/seaborn.heatmap.html
+    # https://seaborn.pydata.org/generated/seaborn.heatmap.html
     def create_heatmap(self, data, measure, title):
 
         data = data[['Protein', 'sample', measure]]
@@ -206,10 +210,10 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
 
-    #we want to see what genes have the highest and lowest pN/pS scores
-    #based on self.gene_sample_df
-    #that can be further aggregated into self.gene_df
-    #and then merged with self.gene_annotation.df for annotation
+    # we want to see what genes have the highest and lowest pN/pS scores
+    # based on self.gene_sample_df
+    # that can be further aggregated into self.gene_df
+    # and then merged with self.gene_annotation.df for annotation
     def score_genes_and_output_ordered_genes_to_file(self):
 
         filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
@@ -252,12 +256,12 @@ class MakeGenePlots:
 
     def create_box_plots(self, min_nr_samples=3):
 
-        #box plots for log10_pN/pS
+        # box plots for log10_pN/pS
 
-        #filter out the genes that do not have a minimal presence of min_nr_of_samples occurences in the samples
+        # filter out the genes that do not have a minimal presence of min_nr_of_samples occurences in the samples
         filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
 
-        #head only works because self.gene_df is already ordered by log10_pN/pS_mean in score_genes_..()
+        # head only works because self.gene_df is already ordered by log10_pN/pS_mean in score_genes_..()
         top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean']]
         self.create_box_plot(top10_data, "Protein", "log10_pN/pS",
                              "top 10 pos selection present in at least {} samples".format(min_nr_samples))
@@ -272,7 +276,7 @@ class MakeGenePlots:
 
         self.create_box_plot(self.gene_df, "Protein", "log10_pN/pS", "all genes")
 
-        #box plots for ENTROPY
+        # box plots for ENTROPY
         filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean']]
@@ -287,7 +291,7 @@ class MakeGenePlots:
         self.create_box_plot(combined_data, "Protein", "entropy_mean",
                              "top and bottom 10 internal var in at least {} samples".format(min_nr_samples))
 
-        #new aggregation per sample (min_nr_samples should now be read as min_nr_genes)
+        # new aggregation per sample (min_nr_samples should now be read as min_nr_genes)
         filter_data = self.sample_df[self.sample_df['log10_pN/pS_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)
@@ -310,7 +314,6 @@ class MakeGenePlots:
         self.create_box_plot(combined_data, "sample", "AAcoverage_mean",
                              "top and bottom 10 coverage with at least {} genes".format(min_nr_samples))
 
-
     def create_box_plot(self, filter_data, agg_field, measure, title):
 
         data = self.gene_sample_filtered_on_quality()
@@ -325,7 +328,7 @@ class MakeGenePlots:
 
         data = data[[agg_field, measure]]
 
-        #add mean of measure per gene and then merge with the original dataset
+        # add mean of measure per gene and then merge with the original dataset
         # in order to sort the genes on the mean of the measure
         grouped = data.groupby(agg_field).mean()
 
@@ -339,8 +342,8 @@ class MakeGenePlots:
         plt.title(title)
         sns.set(style="ticks")
 
-        #TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
-        #we should probably recalculate p_N/p_S with a pseudocount
+        # TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
+        # we should probably recalculate p_N/p_S with a pseudocount
         sns.boxplot(x=measure, y=agg_field, data=data,
                     whis="range", palette="vlag")
 
@@ -354,7 +357,7 @@ class MakeGenePlots:
         # plt.show()
         plt.savefig(figure_name)
 
-    def create_line_plots_for_pN_pS(self):
+    def create_line_plots_for_pn_ps(self):
         # make line plots based on
         # aggregration of bin_sample_df
         # to bin_df
@@ -381,8 +384,6 @@ class MakeGenePlots:
 
         self.line_plots_for_measure(data, "log10_pN_pS_60")
 
-        debug = True
-
     def line_plots_for_measure(self, data, measure, ylim_bottom=None):
 
         genes = data.Protein.unique()
@@ -390,9 +391,9 @@ class MakeGenePlots:
         # TODO: determine the number of genes and make a plot for every set of 6 genes
         nr_plots = int(np.round((len(genes)/6)))
 
-        #we loop through the plots and subplots and then select the next gene instead of looping through the genes
+        # we loop through the plots and subplots and then select the next gene instead of looping through the genes
         i = 0
-        #we always make one extra plot (so some of the sub plots of the last plot may be empty)
+        # we always make one extra plot (so some of the sub plots of the last plot may be empty)
         for j in range(0,nr_plots):
 
             fig, axs = plt.subplots(3,2)
@@ -426,7 +427,7 @@ class MakeGenePlots:
 
         self.create_plot_dir(ref)
 
-        self.create_line_plots_for_pN_pS()
+        self.create_line_plots_for_pn_ps()
 
         self.prepare_data_for_plots()
 
@@ -438,11 +439,10 @@ class MakeGenePlots:
 
         self.score_samples()
 
-        #TODO in same way: what samples have the highest entropy?
-
-        #create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
-        #after applying the quality filter
+        # create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
+        # after applying the quality filter
         self.create_box_plots(min_nr_samples)
+
 
 def do_analysis(args_in):
 
@@ -472,6 +472,7 @@ def do_analysis(args_in):
     make = MakeGenePlots(args.sample_dir, args.ref_dir)
 
     make.do_analysis(args.min_nr_samples, args.ref)
+
 
 if __name__ == "__main__":
     do_analysis(sys.argv[1:])
