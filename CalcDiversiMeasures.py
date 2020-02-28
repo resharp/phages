@@ -26,6 +26,10 @@ import seaborn as sns;sns.set()
 #
 # the parameter ref (e.g. cs_ms_21) is only used for determination of read/write directory:
 # [sample]_[ref] e.g. ERR526006_cs_ms_21
+#
+# sample_ref_measures.txt
+#  e.g. breadth_1x; breadth_10x; breadth_50x; breadth_100x
+# this has also been added PER GENE to gene_measures.txt
 class CalcDiversiMeasures:
 
     aa_table_name = ""
@@ -38,6 +42,7 @@ class CalcDiversiMeasures:
     dir_sep = ""
     aa_df = None
     gene_df = None
+    sample_df = None
     codon_df = None
 
     def __init__(self, sample_dir):
@@ -118,7 +123,31 @@ class CalcDiversiMeasures:
         #todo: hoe kan refcodon nan zijn?
         # merge_df_short = merge_df[['Protein','AAPosition','RefCodon', 'codon', 'syn', 'non_syn']]
 
-    def calc_measures(self):
+    def calc_sample_measures(self, sample, ref):
+
+        nr_codons_genome = len(self.aa_df)
+
+        len_1x = len(self.aa_df[self.aa_df['AAcoverage'].ge(1)])
+        len_10x = len(self.aa_df[self.aa_df['AAcoverage'].ge(10)])
+        len_50x = len(self.aa_df[self.aa_df['AAcoverage'].ge(50)])
+        len_100x = len(self.aa_df[self.aa_df['AAcoverage'].ge(100)])
+
+        breadth_1x = len_1x/nr_codons_genome
+        breadth_10x = len_10x/nr_codons_genome
+        breadth_50x = len_50x/nr_codons_genome
+        breadth_100x = len_100x/nr_codons_genome
+
+        self.sample_df = pd.DataFrame(data=[[ sample, ref, breadth_1x, breadth_10x, breadth_50x, breadth_100x]],
+                                      columns=('sample', 'ref',
+                                               'breadth_1x', 'breadth_10x', 'breadth_50x', 'breadth_100x'))
+
+        self.sample_df = self.sample_df.round(decimals=4)
+
+        sample_measure_name = self.sample_ref_dir(sample, ref) + sample + "_sample_measures.txt"
+
+        self.sample_df.to_csv(path_or_buf=sample_measure_name, sep='\t', index=False)
+
+    def calc_aa_measures(self):
 
         # ENTROPY determine estimation of entropy per AA locus, based on three codon varieties
         self.aa_df['TopAAcnt_perc'] = (self.aa_df["TopAAcnt"] / self.aa_df["AAcoverage"])
@@ -131,14 +160,14 @@ class CalcDiversiMeasures:
                                        -(self.aa_df['TrdAAcnt_perc'] * np.log10(self.aa_df['TrdAAcnt_perc'])).replace(np.nan,0)
                                        )
 
-        #DEFINITION of POLYMORPHISM
-        #before aggregating first make a filtered derived measure for SndAAcnt_perc
-        #we only want to keep percentages > 1% in the sample
+        # DEFINITION of POLYMORPHISM
+        # before aggregating first make a filtered derived measure for SndAAcnt_perc
+        # we only want to keep percentages > 1% in the sample
         # SndAAcnt_perc_polymorphism
         self.aa_df['SndAAcnt_perc_polymorphism'] = 0
         self.aa_df.loc[self.aa_df["SndAAcnt_perc"] > 0.01, 'SndAAcnt_perc_polymorphism'] = self.aa_df["SndAAcnt_perc"]
 
-        #total number of SNPs
+        # total number of SNPs
         self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
 
         # debug_data = self.aa_df[["Protein", "AAPosition", "SndAAcnt_perc", "SndAAcnt_perc_polymorphism"]]
@@ -195,17 +224,30 @@ class CalcDiversiMeasures:
         self.plot_dir = self.sample_ref_dir(sample, ref) + "DiversiMeasures"
         os.makedirs(self.plot_dir, exist_ok=True)
 
+    @staticmethod # note: coverage is a pandas series, ge means greater or equal than
+    def ge_1x(coverage):
+        return coverage[coverage.ge(1)].count().astype(int)
+
+    @staticmethod
+    def ge_10x(coverage):
+        return coverage[coverage.ge(10)].count().astype(int)
+
+    @staticmethod
+    def ge_50x(coverage):
+        return coverage[coverage.ge(50)].count().astype(int)
+
     # aggregate measures
-    def aggregate_measures(self, sample):
+    def aggregate_to_gene_measures(self, sample):
 
         # mean coverage of all genes
 
         # TODO add CntSnp median over all genes
         genome_coverage_mean = self.aa_df.AAcoverage.mean().round(decimals=4)
 
+        # nb: the [ ] list of functions operate on a Pandas series for each field
         self.gene_df = self.aa_df.groupby("Protein").agg(
             {
-                'AAcoverage': ["mean", "std", "sum"],
+                'AAcoverage': ["count", self.ge_1x, self.ge_10x, self.ge_50x, "mean", "std", "sum"],
                 'TopAAcnt': ["mean", "std", "sum"],
                 'SndAAcnt': ["mean", "std", "sum"],
                 'TrdAAcnt': ["mean", "std", "sum"],
@@ -220,9 +262,18 @@ class CalcDiversiMeasures:
             }
         )
 
+        # an alternative way to count the number of 50x positions would be (and then later join on Protein)
+        # df_50x = self.aa_df.set_index("Protein").AAcoverage.ge(50).sum(level=0).astype(int).reset_index()
+
         # remove multi-index set on column axis
         # https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
+
+        self.gene_df["breadth_1x"] = (self.gene_df["AAcoverage_ge_1x"] / self.gene_df["AAcoverage_count"])\
+            #.round(decimals=4)
+        self.gene_df["breadth_10x"] = self.gene_df["AAcoverage_ge_10x"] / self.gene_df["AAcoverage_count"]
+        self.gene_df["breadth_50x"] = self.gene_df["AAcoverage_ge_50x"] / self.gene_df["AAcoverage_count"]
+
 
         self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
         self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='unsigned', errors='coerce')
@@ -254,7 +305,7 @@ class CalcDiversiMeasures:
         # gene output table should contain sample (for later integrating over multiple samples)
         self.gene_df["sample"] = sample
 
-    def write_aggregated_measures(self, sample, ref):
+    def write_gene_measures(self, sample, ref):
 
         self.gene_table_name = self.sample_ref_dir(sample, ref) + sample + "_gene_measures.txt"
         # the gene name is in the index
@@ -267,9 +318,7 @@ class CalcDiversiMeasures:
         self.aa_df['sample'] = sample
         data = self.aa_df[['sample', 'Protein', 'AAPosition', 'AAcoverage', 'entropy', 'log10_pN_pS_60']]
 
-        # TODO: also join self.gene_df and add
-        # AAcoverage_perc	AAcoverage_cv
-        # in order to filter on it in further data integration steps
+        # in order to filter in further data integration steps
         data = data.join(self.gene_df[["AAcoverage_perc", "AAcoverage_cv"]],
                   on='Protein', rsuffix='_gene')
 
@@ -480,7 +529,10 @@ class CalcDiversiMeasures:
 
         self.read_files(sample, ref)
 
-        self.calc_measures()
+        # now we can first determine some statistics on sample level e.g. about the AA coverage
+        self.calc_sample_measures(sample, ref)
+
+        self.calc_aa_measures()
 
         self.create_plot_dir(sample, ref)
 
@@ -492,9 +544,9 @@ class CalcDiversiMeasures:
             # this is still too buggy for the current pipeline (when there are not so many reads mapped)
             self.find_and_write_local_regions(sample, ref)
 
-        self.aggregate_measures(sample)
+        self.aggregate_to_gene_measures(sample)
 
-        self.write_aggregated_measures(sample, ref)
+        self.write_gene_measures(sample, ref)
 
         self.write_bin_measures(sample, ref)
 
@@ -514,7 +566,6 @@ def run_calc(args_in):
 
     parser.add_argument("-a", "--all", action="store_true", default=False,
                         help="run all samples in sample directory", required=False)
-
 
     args = parser.parse_args(args_in)
 
