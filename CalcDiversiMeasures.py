@@ -65,9 +65,11 @@ class CalcDiversiMeasures:
 
         self.read_codon_table()
 
-        self.integrate_tables(sample)
+        enough_reads = self.integrate_tables(sample)
 
         logging.debug("finished reading tables")
+
+        return enough_reads
 
     def read_aa_table(self, sample, ref):
 
@@ -105,7 +107,10 @@ class CalcDiversiMeasures:
                            "for sample {sample}".format(sample=sample)
 
             logging.error(error_message)
-            raise Exception(error_message)
+
+            # to do: do not raise exception here, because then the other samples
+            # will not be processed when running with the -a option
+            return
 
         else:
             info_message = "nr of unique refcodons {nr} ".format(nr=nr_unique_refcodons) + \
@@ -122,6 +127,8 @@ class CalcDiversiMeasures:
 
         #todo: hoe kan refcodon nan zijn?
         # merge_df_short = merge_df[['Protein','AAPosition','RefCodon', 'codon', 'syn', 'non_syn']]
+
+        return True
 
     def calc_sample_measures(self, sample, ref):
 
@@ -193,7 +200,7 @@ class CalcDiversiMeasures:
         self.aa_df.loc[self.aa_df.AAPosition < window_size, "non_syn" + ext] = 0
 
         # median for whole sample
-        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median()
         snp_pseudo_count = np.sqrt(count_snp_median) / 2
 
         # this might result in infinity which is ok for now
@@ -527,7 +534,10 @@ class CalcDiversiMeasures:
 
     def run_calc(self, sample, ref):
 
-        self.read_files(sample, ref)
+        enough_reads = self.read_files(sample, ref)
+
+        if not enough_reads:
+            return
 
         # now we can first determine some statistics on sample level e.g. about the AA coverage
         self.calc_sample_measures(sample, ref)
@@ -604,17 +614,21 @@ def run_calc(args_in):
                 logging.debug("processing {}".format(sample_name))
                 calc.run_calc(sample, args.ref)
 
+
 if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref = "crassphage_refseq"
+#
+# refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1"]
 # ref = "sib1_ms_5"
 # ref = "err975045_s_1"
-#run all samples
-# run_calc(["-d", sample_dir, "-r", ref, "-a"])
+# run all samples
+# for ref in refs:
+#     run_calc(["-d", sample_dir, "-r", ref, "-a"])
 
-#or run one sample, or a list of
+# or run one sample, or a list of
 # sample = "ERR525804"
 # run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
