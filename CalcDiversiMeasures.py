@@ -296,7 +296,7 @@ class CalcDiversiMeasures:
         self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
 
         # take median of non-zero values over all amino acids (alle genes)
-        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median().round(decimals=4)
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median()
         snp_pseudo_count = np.sqrt(count_snp_median) / 2
 
         self.gene_df["pN/pS"] = self.gene_df["syn_ratio"] * \
