@@ -247,6 +247,7 @@ class CalcDiversiMeasures:
         # nb: the [ ] list of functions operate on a Pandas series for each field
         self.gene_df = self.aa_df.groupby("Protein").agg(
             {
+                'AAPosition': "count",
                 'AAcoverage': ["count", self.ge_1x, self.ge_10x, self.ge_50x, "mean", "std", "sum"],
                 'TopAAcnt': ["mean", "std", "sum"],
                 'SndAAcnt': ["mean", "std", "sum"],
@@ -262,18 +263,15 @@ class CalcDiversiMeasures:
             }
         )
 
-        # an alternative way to count the number of 50x positions would be (and then later join on Protein)
+        # an alternative way to count the number of 50x positions would be (and then later join on "Protein"):
         # df_50x = self.aa_df.set_index("Protein").AAcoverage.ge(50).sum(level=0).astype(int).reset_index()
 
         # remove multi-index set on column axis
         # https://www.shanelynn.ie/summarising-aggregation-and-grouping-data-in-python-pandas/
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
 
-        self.gene_df["breadth_1x"] = (self.gene_df["AAcoverage_ge_1x"] / self.gene_df["AAcoverage_count"])\
-            #.round(decimals=4)
-        self.gene_df["breadth_10x"] = self.gene_df["AAcoverage_ge_10x"] / self.gene_df["AAcoverage_count"]
-        self.gene_df["breadth_50x"] = self.gene_df["AAcoverage_ge_50x"] / self.gene_df["AAcoverage_count"]
-
+        # sample for later integrating over multiple samples
+        self.gene_df["sample"] = sample
 
         self.gene_df.AAcoverage_sum = pd.to_numeric(self.gene_df.AAcoverage_sum, downcast='unsigned', errors='coerce')
         self.gene_df.CntNonSyn_sum = pd.to_numeric(self.gene_df.CntNonSyn_sum, downcast='unsigned', errors='coerce')
@@ -283,6 +281,11 @@ class CalcDiversiMeasures:
         self.gene_df.TrdAAcnt_sum = pd.to_numeric(self.gene_df.TrdAAcnt_sum, downcast='unsigned', errors='coerce')
 
         # derived measures
+        self.gene_df["breadth_1x"] = (self.gene_df["AAcoverage_ge_1x"] / self.gene_df["AAPosition_count"])\
+            #.round(decimals=4)
+        self.gene_df["breadth_10x"] = self.gene_df["AAcoverage_ge_10x"] / self.gene_df["AAPosition_count"]
+        self.gene_df["breadth_50x"] = self.gene_df["AAcoverage_ge_50x"] / self.gene_df["AAPosition_count"]
+
         self.gene_df["syn_ratio"] = self.gene_df["syn_sum"] / self.gene_df["non_syn_sum"]
 
         # take median of non-zero values over all amino acids (alle genes)
@@ -301,9 +304,6 @@ class CalcDiversiMeasures:
 
         # round all floats to four decimals
         self.gene_df = self.gene_df.round(decimals=4)
-
-        # gene output table should contain sample (for later integrating over multiple samples)
-        self.gene_df["sample"] = sample
 
     def write_gene_measures(self, sample, ref):
 
@@ -610,7 +610,9 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref = "crassphage_refseq"
-# #run all samples
+# ref = "sib1_ms_5"
+# ref = "err975045_s_1"
+#run all samples
 # run_calc(["-d", sample_dir, "-r", ref, "-a"])
 
 #or run one sample, or a list of
