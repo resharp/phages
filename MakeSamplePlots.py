@@ -16,9 +16,7 @@ import sys
 # 1. sample_stats.txt       (statistics of samples vs ref genomes)
 # 2. metadata_ERP005989.txt (metadata project)
 # 3. ref_genome_ids.txt     (metadata ref genomes)
-# 4. sample_ref_measures.txt(extra generated measures aggregated from results by CalcDiversiMeasures)
-
-
+# 4. sample_measures.txt    (extra generated measures aggregated from results by CalcDiversiMeasures)
 class MakeSamplePlots:
 
     project_dir = ""
@@ -28,6 +26,7 @@ class MakeSamplePlots:
     sample_meta_df = None
     sample_stats_df = None
     ref_meta_df = None
+    sample_measures_df = None
     merge_df = None
     genus_sorted_df = None
 
@@ -52,6 +51,8 @@ class MakeSamplePlots:
 
         self.read_ref_metadata()
 
+        self.read_sample_measures()
+
         logging.info("finished reading tables")
 
     def read_sample_metadata(self):
@@ -75,8 +76,10 @@ class MakeSamplePlots:
         self.sample_stats_df = pd.read_csv(stats_file_name
                                            , sep='\t'
                                            , header=None
-                                           , names=["run", "ref", "mapped", "nonmapped"]
-                                           )
+                                           , names=["run", "ref", "mapped", "nonmapped"])
+
+        # rename NC_024711.1 to crassphage_refseq, for being able to join with sample_measures
+        self.sample_stats_df.loc[self.sample_stats_df.ref == "NC_024711.1", "ref"] = "crassphage_refseq"
 
     def read_ref_metadata(self):
 
@@ -89,6 +92,23 @@ class MakeSamplePlots:
                                        , comment="#"
                                        , names=["ref", "genus"]
                                        )
+
+    def read_sample_measures(self):
+
+        # sample measures contains the breadth_1x, ..10x, ..50x and ..100x fractions
+        measure_file_name = self.sample_dir + self.dir_sep + "sample_measures.txt"
+        self.sample_measures_df = pd.read_csv(measure_file_name,
+                                              sep="\t",
+                                              )
+        nr_1x_05 = len(self.sample_measures_df[self.sample_measures_df.breadth_1x > 0.05])
+        nr_1x_20 = len(self.sample_measures_df[self.sample_measures_df.breadth_1x > 0.20])
+        nr_1x_80 = len(self.sample_measures_df[self.sample_measures_df.breadth_1x > 0.80])
+        nr_1x_95 = len(self.sample_measures_df[self.sample_measures_df.breadth_1x > 0.95])
+
+        logging.info("nr of 1x > 5%: {nr}".format(nr=nr_1x_05))
+        logging.info("nr of 1x > 20%: {nr}".format(nr=nr_1x_20))
+        logging.info("nr of 1x > 80%: {nr}".format(nr=nr_1x_80))
+        logging.info("nr of 1x > 95%: {nr}".format(nr=nr_1x_95))
 
     def merge_files(self):
 
@@ -112,6 +132,13 @@ class MakeSamplePlots:
         nr_of_mappings = len(merge_df)
         logging.info("Number of mappings analyzed: {nr_of_mappings}".format(nr_of_mappings=nr_of_mappings))
         logging.info("total number of mapped reads: {mapped}".format(mapped=merge_df.mapped.sum()))
+
+        merge_df = merge_df.merge(self.sample_measures_df
+                                  , left_on=[merge_df.run, merge_df.ref]
+                                  # nb: sample is reserved word of pandas DataFrame
+                                  , right_on=[self.sample_measures_df["sample"], self.sample_measures_df.ref]
+                                  , how="left").drop(["key_0", "key_1", "ref_y", "sample"], axis=1)
+        merge_df.rename(columns={'ref_x': 'ref'}, inplace=True)
 
         self.merge_df = merge_df
 
@@ -183,7 +210,7 @@ class MakeSamplePlots:
         return row.genus.replace("genus_", "")
 
     # this is a specific plot for the project that contains metadata about age in the sample name
-    def make_category_plots(self):
+    def make_abundance_plots(self):
 
         self.make_category_plot("swarm")
         self.make_category_plot("box")
@@ -198,6 +225,58 @@ class MakeSamplePlots:
                                                                                    kind=kind)
         plt.savefig(figure_name)
         plt.clf()
+
+    @staticmethod # note: breadth is a pandas series, ge means greater or equal than
+    def ge_1_perc(breadth):
+        return breadth[breadth.ge(0.01)].count().astype(int)
+
+    @staticmethod
+    def ge_5_perc(breadth):
+        return breadth[breadth.ge(0.05)].count().astype(int)
+
+    @staticmethod
+    def ge_20_perc(breadth):
+        return breadth[breadth.ge(0.2)].count().astype(int)
+
+    @staticmethod
+    def ge_80_perc(breadth):
+        return breadth[breadth.ge(0.8)].count().astype(int)
+
+    @staticmethod
+    def ge_95_perc(breadth):
+        return breadth[breadth.ge(0.95)].count().astype(int)
+
+    def make_filter_sample_plots(self):
+        # now we want to show the number of valid samples after applying filter
+        # for each genus we want to show a barplot with nr of samples at different cut-offs
+        # so we want to show
+        counts_df = self.merge_df.groupby(["ref", "genus"]).agg(
+            {
+                "breadth_1x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
+                "breadth_10x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
+                "breadth_50x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
+                "breadth_100x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc]
+            }
+        ).reset_index()
+
+        counts_df.columns = ["_".join(x) for x in counts_df.columns.ravel()]
+        counts_df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
+
+        depths = ["1x", "10x", "50x", "100x"]
+        percentages = [1, 5, 20, 80, 95]
+        for depth in depths:
+            for perc in percentages:
+                sns.barplot(x=counts_df.genus,
+                            y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)])
+
+                figure_name = "{dir}{sep}sample_plots.filter.{depth}.{perc}_perc.pdf".format(
+                    dir=self.plot_dir, sep=self.dir_sep, depth=depth, perc=perc
+                )
+                plt.savefig(figure_name)
+                plt.clf()
+
+        debug = True
+
 
     def make_scatter_plots(self):
         # total number of mappings between age 4 and 12 months and mother?
@@ -243,7 +322,8 @@ class MakeSamplePlots:
             x_value=x_value, y_value=y_value, genus=genus
         )
         plt.savefig(figure_name)
-        plt.clf()
+        s_plot.clear()
+        plt.close(s_plot)
 
     def create_plot_dir(self):
 
@@ -264,9 +344,14 @@ class MakeSamplePlots:
 
         self.prepare_specifics_for_project()
 
-        self.make_category_plots()
+        self.make_abundance_plots()
 
-        self.make_scatter_plots()
+        self.make_filter_sample_plots()
+
+        verbose = False
+        # some verbose stuff:
+        if verbose:
+            self.make_scatter_plots()
 
 
 def do_analysis(args_in):
