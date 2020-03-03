@@ -36,6 +36,8 @@ class MakeGenePlots:
     bin_sample_df = None
     bin_df = None
 
+    sample_breadth_df = None
+
     threshold_depth = 0
     threshold_breadth = 0
 
@@ -62,6 +64,8 @@ class MakeGenePlots:
         self.read_gene_annotation(ref)
 
         self.bin_sample_df = self.read_and_concat_sample_measures(ref, "_bin_measures.txt")
+
+        self.sample_breadth_df = self.read_and_concat_sample_measures(ref, "_sample_measures.txt")
 
         logging.info("finished reading tables")
 
@@ -150,21 +154,24 @@ class MakeGenePlots:
 
     def create_heatmaps(self):
 
-        # filter on quality
+        # filter gene sample on quality
         data = self.gene_sample_filtered_on_quality()
 
+        # also filter out complete samples before showing pN/pS
+        # we do not care for samples with a 1x horizontal coverage below 5%
+        filtered_data = self.gene_sample_filtered_on_sample_coverage(data)
+
         # make a heatmap of the log10_pN/pS based on multiple samples
-        self.create_heatmap(data, "log10_pN/pS", "Log 10 of pN/pS (red=diverging, blue=conserved)")
-        self.create_heatmap(data, "positive_selection", "log10_pN/pS either > -0.3 or < - 0.7")
+        self.create_heatmap(filtered_data, "log10_pN/pS", "Log 10 of pN/pS (red=diverging, blue=conserved)")
+        self.create_heatmap(filtered_data, "positive_selection", "log10_pN/pS either > -0.3 or < - 0.7")
 
-        self.create_heatmap(data, "SndAAcnt_perc_polymorphism_mean", "Within sample AA variation in genes")
+        self.create_heatmap(filtered_data, "SndAAcnt_perc_polymorphism_mean", "Within sample AA variation in genes")
 
-        self.create_heatmap(data, "AAcoverage_perc", "Coverage percentage (compared to whole genome)")
-
-        self.create_heatmap(data, "entropy_mean", "Mean codon entropy (base 10)")
+        self.create_heatmap(filtered_data, "entropy_mean", "Mean codon entropy (base 10)")
 
         #make a heatmap of quality measure AAcoverage_cv
         self.create_heatmap(data, "AAcoverage_cv", "Internal coefficient of variation per gene")
+        self.create_heatmap(data, "AAcoverage_perc", "Coverage percentage (compared to whole genome)")
 
         #use unfiltered data for quality measures
         data = self.gene_sample_df
@@ -179,9 +186,6 @@ class MakeGenePlots:
 
     def gene_sample_filtered_on_quality(self):
 
-        # to do: we should reconsider the coverage rules
-        # maybe we would like to have at least a certain coverage depth e.g. 10x with a minimum of 95% horizontal
-        # coverage PER GENE.
         data = self.gene_sample_df
 
         breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
@@ -190,8 +194,19 @@ class MakeGenePlots:
         # data = data[(data.AAcoverage_perc < 1.5)]
         # data = data[(data.AAcoverage_perc > 0.2)]
 
-        # TODO: should we also exclude samples with few values for genes left after filtering?
-        # first make distribution plot of # of genes per sample
+        return data
+
+    def gene_sample_filtered_on_sample_coverage(self, data):
+        # also filter out complete samples before showing pN/pS
+        # we do not care for samples with a 1x horizontal coverage below 5%
+        filtered_sample = self.sample_breadth_df[self.sample_breadth_df.breadth_1x.ge(0.05)]
+
+        data = data.merge(filtered_sample,
+                          left_on=data["sample"],
+                          right_on=filtered_sample["sample"],
+                          how="inner").drop(["key_0"], axis=1)
+
+        data.rename(columns={'sample_x': 'sample'}, inplace=True)
 
         return data
 
@@ -219,10 +234,13 @@ class MakeGenePlots:
 
         plt.clf()  # clear the current figure (always do this before any new plot)
         ax = sns.heatmap(data, cmap="seismic", annot=False)
-        plt.title(title)
+        plt.title(title + " ({breadth}/{depth}x)".
+                  format(depth=self.threshold_depth, breadth=self.threshold_breadth))
 
-        figure_name = "{}{}gene_plots.heat_map.{}.pdf".format(self.plot_dir, self.dir_sep, measure.replace("/", "_"))
-
+        figure_name = "{}{}gene_plots.heat_map.{breadth}.{depth}x.pdf".format(
+            self.plot_dir, self.dir_sep, measure.replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
         plt.savefig(figure_name)
 
     # we want to see what genes have the highest and lowest pN/pS scores
@@ -252,7 +270,10 @@ class MakeGenePlots:
 
         merge_df = merge_df[['Protein','log10_pN/pS_mean','log10_pN/pS_std','log10_pN/pS_count','Annotation']]
 
-        merge_df.to_csv(self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.txt", index=False, sep='\t')
+        filename = self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.{breadth}.{depth}x.txt".format(
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        merge_df.to_csv(filename, index=False, sep='\t')
 
     def score_samples(self):
         filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
@@ -354,10 +375,12 @@ class MakeGenePlots:
             rename(columns={"{}_x".format(measure): measure })
 
         plt.clf()
-        plt.title(title)
+        plt.title(title + " ({breadth}/{depth}x)".
+                  format(depth=self.threshold_depth, breadth=self.threshold_breadth))
+
         sns.set(style="ticks")
 
-        # TODO: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
+        # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
         sns.boxplot(x=measure, y=agg_field, data=data,
                     whis="range", palette="vlag")
@@ -365,11 +388,10 @@ class MakeGenePlots:
         sns.swarmplot(x=measure, y=agg_field, data=data,
                       size=2, color=".3", linewidth=0)
 
-        figure_name = "{}{}gene_plots.{}.box_plot.{}.{}.pdf".format(self.plot_dir, self.dir_sep,
-                                                                 agg_field,
-                                                                 measure.replace("/", "_"),
-                                                                 title.replace(" ", "_"))
-        # plt.show()
+        figure_name = "{}{}gene_plots.{}.box_plot.{}.{}.{breadth}.{depth}x.pdf".format(
+            self.plot_dir, self.dir_sep, agg_field, measure.replace("/", "_"), title.replace(" ", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
         plt.savefig(figure_name)
 
     def create_line_plots_for_pn_ps(self):
@@ -403,7 +425,7 @@ class MakeGenePlots:
 
         genes = data.Protein.unique()
 
-        # TODO: determine the number of genes and make a plot for every set of 6 genes
+        # determine the number of genes and make a plot for every set of 6 genes
         nr_plots = int(np.round((len(genes)/6)))
 
         # we loop through the plots and subplots and then select the next gene instead of looping through the genes
