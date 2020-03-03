@@ -237,8 +237,8 @@ class MakeGenePlots:
         plt.title(title + " ({breadth}/{depth}x)".
                   format(depth=self.threshold_depth, breadth=self.threshold_breadth))
 
-        figure_name = "{}{}gene_plots.heat_map.{breadth}.{depth}x.pdf".format(
-            self.plot_dir, self.dir_sep, measure.replace("/", "_"),
+        figure_name = "{}{}gene_plots.heat_map.{measure}.{breadth}.{depth}x.pdf".format(
+            self.plot_dir, self.dir_sep, measure=measure.replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
         plt.savefig(figure_name)
@@ -388,8 +388,9 @@ class MakeGenePlots:
         sns.swarmplot(x=measure, y=agg_field, data=data,
                       size=2, color=".3", linewidth=0)
 
-        figure_name = "{}{}gene_plots.{}.box_plot.{}.{}.{breadth}.{depth}x.pdf".format(
-            self.plot_dir, self.dir_sep, agg_field, measure.replace("/", "_"), title.replace(" ", "_"),
+        figure_name = "{}{}gene_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.pdf".format(
+            self.plot_dir, self.dir_sep, agg_field,
+            measure=measure.replace("/", "_"), title=title.replace(" ", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
         plt.savefig(figure_name)
