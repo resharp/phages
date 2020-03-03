@@ -160,6 +160,11 @@ class MakeGenePlots:
 
         #use unfiltered data for quality measures
         data = self.gene_sample_df
+
+        self.create_heatmap(data, "breadth_1x", "1x horizontal coverage percentages")
+        self.create_heatmap(data, "breadth_10x", "10x horizontal coverage percentages")
+        self.create_heatmap(data, "breadth_50x", "50x horizontal coverage percentages")
+
         self.create_heatmap(data, "missing_gene", "Missing genes (based on coverage < 2% rest genome)")
 
         self.create_heatmap(data, "double_coverage", "Genes that have > twice the amount of coverage compared to genome")
@@ -168,7 +173,7 @@ class MakeGenePlots:
 
         # to do: we should reconsider the coverage rules
         # maybe we would like to have at least a certain coverage depth e.g. 10x with a minimum of 95% horizontal
-        # coverage PER GENE. We have to prepare this information in CalcDiversiMeasures
+        # coverage PER GENE.
         data = self.gene_sample_df
         data = data[data.AAcoverage_cv < 0.2]
 
@@ -480,6 +485,7 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref="crassphage_refseq"
+#ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
 # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "1"])
 
