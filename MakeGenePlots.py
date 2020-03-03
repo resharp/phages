@@ -36,10 +36,16 @@ class MakeGenePlots:
     bin_sample_df = None
     bin_df = None
 
-    def __init__(self, sample_dir, ref_dir):
+    threshold_depth = 0
+    threshold_breadth = 0
+
+    def __init__(self, sample_dir, ref_dir, threshold_depth, threshold_breadth):
 
         self.sample_dir = sample_dir
         self.ref_dir = ref_dir
+        self.threshold_depth = threshold_depth
+        self.threshold_breadth = threshold_breadth
+
         if os.name == 'nt':
             self.dir_sep = "\\"
         else:
@@ -135,8 +141,10 @@ class MakeGenePlots:
 
         sns.distplot(counts_df[['log10_pN/pS_count']], bins=(max-min+1), kde=False)
 
-        plt.title("Distribution of sample presence for genes")
-        figure_name = "{}{}gene_plots.gene_sample_counts.pdf".format(self.plot_dir, self.dir_sep)
+        plt.title("Distribution of sample presence for genes ({breadth}/{depth}x)".
+                  format(depth=self.threshold_depth, breadth=self.threshold_breadth))
+        figure_name = "{}{}gene_plots.gene_sample_counts.{breadth}.{depth}x.pdf".\
+            format(self.plot_dir, self.dir_sep, depth=self.threshold_depth, breadth=self.threshold_breadth)
 
         plt.savefig(figure_name)
 
@@ -175,10 +183,12 @@ class MakeGenePlots:
         # maybe we would like to have at least a certain coverage depth e.g. 10x with a minimum of 95% horizontal
         # coverage PER GENE.
         data = self.gene_sample_df
-        data = data[data.AAcoverage_cv < 0.2]
+
+        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+        data = data[data[breadth_field] > self.threshold_breadth]
 
         # data = data[(data.AAcoverage_perc < 1.5)]
-        data = data[(data.AAcoverage_perc > 0.2)]
+        # data = data[(data.AAcoverage_perc > 0.2)]
 
         # TODO: should we also exclude samples with few values for genes left after filtering?
         # first make distribution plot of # of genes per sample
@@ -464,6 +474,13 @@ def do_analysis(args_in):
     parser.add_argument("-ns", "--min_nr_samples", dest="min_nr_samples", metavar="[min_nr_samples]", type=int,
                         help="minimal nr of samples for genes")
 
+    parser.add_argument("-td", "--threshold_depth", dest="threshold_depth", metavar="[threshold_depth]", type=int,
+                        help="threshold for the depth, 1,10 or 50, will be combined with threshold for breadth")
+
+    parser.add_argument("-tb", "--threshold_breadth", dest="threshold_breadth", metavar="[threshold_breadth]",
+                        type=float,
+                        help="threshold for breadth, between 0 and 1, will be combined with threshold for depth")
+
     args = parser.parse_args(args_in)
 
     print("Start running MakeGenePlots")
@@ -473,8 +490,14 @@ def do_analysis(args_in):
     if not args.min_nr_samples:
         args.min_nr_samples = 3
     print("minimal nr of samples = {}".format(args.min_nr_samples))
+    if not args.threshold_depth:
+        args.threshold_depth = 10
+    if not args.threshold_breadth:
+        args.threshold_breadth = 0.95
+    print("threshold depth   : {depth}".format(depth=args.threshold_depth))
+    print("threshold breadth : {breadth}".format(breadth=args.threshold_breadth))
 
-    make = MakeGenePlots(args.sample_dir, args.ref_dir)
+    make = MakeGenePlots(args.sample_dir, args.ref_dir, args.threshold_depth, args.threshold_breadth)
 
     make.do_analysis(args.min_nr_samples, args.ref)
 
@@ -485,8 +508,8 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref="crassphage_refseq"
-#ref="sib1_ms_5"
+# # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "1"])
+# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "1", "-td", "10", "-tb", "0.95"])
 
 
