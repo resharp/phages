@@ -100,7 +100,7 @@ class MakeGenePlots:
         self.gene_anno_df = pd.read_csv(gene_anno_file_name
                                         ,   sep='\t'
                                         ,   header=None
-                                        ,   usecols=[0,1]
+                                        ,   usecols=[0, 1, 2]
                                         ,   names=["Protein", "gene_fam", "Annotation"]
                                         )
 

@@ -77,9 +77,10 @@ class AnnotateCrassGenomes:
         self.hmm_hits_df = pd.read_csv(self.hmm_hits_name
                                        , header=None
                                        , sep="\t"
-                                       , names=["gene", "gene_fam", "hmm_evalue", "hmm_score"
-                                                , "start","end","AA_length"]
-                                       , dtype={"start": "int32", "end": "int32", "AA_length": "int32"}
+                                       , names=["gene", "gene_fam", "hmm_evalue", "hmm_score"]
+                                       , usecols=[0, 1, 2, 3]
+                                       #          , "start","end","AA_length"]
+                                       # , dtype={"start": "int32", "end": "int32", "AA_length": "int32"}
                                        )
 
         # print(self.hmm_hits_df.dtypes)
