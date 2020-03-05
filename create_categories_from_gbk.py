@@ -5,7 +5,7 @@ import pandas as pd
 if os.name == "nt":
     mydir = r"D:\17 Dutihl Lab\crassphage"
 else:
-    mydir = "/hosts/linuxhome/mutant31/tmp/richard/crassphage_samples/MGXDB008660"
+    mydir = "/hosts/linuxhome/chaperone/tmp/richard/guerin_data/crassphage_refseq"
 
 if os.name == 'nt':
     dir_sep = "\\"
