@@ -63,6 +63,7 @@ class MakeGenePlots:
         logging.info("start reading tables")
 
         self.gene_sample_df = self.read_and_concat_sample_measures(ref, "_gene_measures.txt")
+
         self.read_gene_annotation(ref)
 
         self.bin_sample_df = self.read_and_concat_sample_measures(ref, "_bin_measures.txt")
@@ -95,13 +96,13 @@ class MakeGenePlots:
 
         gene_anno_file_name = self.ref_dir + self.dir_sep + "{ref}_gene_list.txt".format(ref=ref)
 
+        # to do also read gene_fam_x (to be produced by AnnotateCrassGenomes)
         self.gene_anno_df = pd.read_csv(gene_anno_file_name
                                         ,   sep='\t'
                                         ,   header=None
                                         ,   usecols=[0,1]
-                                        ,   names=["Protein", "Annotation"]
+                                        ,   names=["Protein", "gene_fam", "Annotation"]
                                         )
-        pass
 
     def prepare_data_for_plots(self):
 
@@ -281,7 +282,9 @@ class MakeGenePlots:
                                      , how='inner')
         merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
 
-        merge_df = merge_df[['Protein','log10_pN/pS_mean','log10_pN/pS_std','log10_pN/pS_count','Annotation']]
+        # to do: also add gene_fam as a key for combining Protein later on
+        merge_df = merge_df[['Protein','gene_fam',
+                             'log10_pN/pS_mean','log10_pN/pS_std','log10_pN/pS_count','Annotation']]
 
         filename = self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.{breadth}.{depth}x.txt".format(
             depth=self.threshold_depth, breadth=self.threshold_breadth

@@ -136,11 +136,10 @@ class AnnotateCrassGenomes:
                                   left_on=merge_df.yutin_gene_nr,
                                   right_on=self.crass_genes_df.yutin_gene_nr,
                                   how="left").drop(["key_0"], axis=1)
-
+        merge_df.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
         debug = "True"
 
         self.merge_df = merge_df
-
 
     def write_files(self):
 
@@ -157,7 +156,7 @@ class AnnotateCrassGenomes:
 
             gene_list_name = self.genome_dir + self.dir_sep + "{genome}_gene_list.txt".format(genome=genome)
 
-            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_annot"]]
+            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "gene_annot"]]
 
             genes_df.loc[genes_df.gene_annot.isnull(), "gene_annot"] = "unknown function"
 
