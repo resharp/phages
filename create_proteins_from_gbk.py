@@ -5,13 +5,17 @@ if os.name == "nt":
     seq_dir = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
     dir_sep = "\\"
 else:
-    seq_dir = "/scripts/mgx/ref_seqs"
+    seq_dir = "scripts/mgx/ref_seqs"
     dir_sep = "/"
 
 ref = "crassphage_refseq"
 
 gbk_filename = seq_dir + dir_sep + "crassphage.gbk".format(ref=ref)
 faa_filename = seq_dir + dir_sep + "{ref}.proteins.faa".format(ref=ref)
+
+print("create_proteins_from_gbk.py: start converting {gbk} to {faa}".format(
+    gbk=gbk_filename, faa=faa_filename
+))
 
 gbk_input = open(gbk_filename, "r")
 faa_output = open(faa_filename, "w")
