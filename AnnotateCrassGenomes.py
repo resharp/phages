@@ -1,9 +1,8 @@
-import pandas as pd
-import os
-import sys
-import matplotlib.pyplot as plt
 import argparse
-import numpy as np
+import os
+
+import pandas as pd
+
 
 # we need to read the files and join the information in the following order:
 # from Guerin dir
@@ -14,6 +13,7 @@ import numpy as np
 # to do: does this annotation contain new information?
 # yutin_conserved_genes.txt (annotation, MSA-file = gene_fam, yutin_nr)
 # crassphage_gene_list_add_yutin.txt    (protein, annotation, yutin_nr, region)
+
 
 class AnnotateCrassGenomes:
 
@@ -138,7 +138,6 @@ class AnnotateCrassGenomes:
                                   right_on=self.crass_genes_df.yutin_gene_nr,
                                   how="left").drop(["key_0"], axis=1)
         merge_df.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
-        debug = "True"
 
         self.merge_df = merge_df
 
@@ -156,13 +155,22 @@ class AnnotateCrassGenomes:
         for genome in genomes:
 
             gene_list_name = self.genome_dir + self.dir_sep + "{genome}_gene_list.txt".format(genome=genome)
+            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "region", "gene_annot"]]
 
-            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "gene_annot"]]
+            # if genome == 'crassphage_refseq', take region from original file (and not by joining on gene_fam)
+            # it is already in self.crass_genes_df!
+            if genome == "crassphage_refseq":
+                genes_df = genes_df.drop("region", axis=1)
+
+                regions_df = self.crass_genes_df[['protein', 'region']]
+                genes_df = genes_df.merge(regions_df,
+                                          left_on=genes_df.gene,
+                                          right_on=regions_df.protein,
+                                          how="inner")[['gene', 'gene_fam', 'region', 'gene_annot']]
 
             genes_df.loc[genes_df.gene_annot.isnull(), "gene_annot"] = "unknown function"
 
             genes_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
-            debug = "True"
 
 
 def annotate(args_in):
@@ -175,18 +183,17 @@ def annotate(args_in):
     parser.add_argument("-gd", "--genome_dir", dest="genome_dir",
                         help="genome directory with Guerin ref genomes", metavar="[genome_dir}", required=True)
 
-
     args = parser.parse_args(args_in)
 
     anno = AnnotateCrassGenomes(args.genome_dir, args.annotation_dir)
 
     anno.annotate()
 
+
 # if __name__ == "__main__":
 #     annotate(sys.argv[1:])
 
-# TODO for testing, do not use in production
-annotation_dir = r"D:\17 Dutihl Lab\crassphage"
+annotation_dir = r"D:\17 Dutihl Lab\source\phages_pycharm\input_files"
 genome_dir = r"D:\17 Dutihl Lab\_tools\hmmsearch"
 
 annotate(["-ad", annotation_dir, "-gd", genome_dir])

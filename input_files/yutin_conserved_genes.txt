@@ -1,0 +1,37 @@
+gene_annot	gene_fam	yutin_gene_nr	IAS_virus_gene_number	crAssphage	CDZK01015469	CEAR01029167	LSPZ01000006	LAZR01000126	CESO01030555	BCSF01000013	LSPY01000004	Azobact_ph_AP017903	Chlamydia_CVNZ01000019ext	contig0001	FUFK010039141	Woesebacteria_MGFQ01000035	Chitinophaga_FOJF01000001	Flavobact_ph_NC_031904	MDTC01014143	CEUT01009082	Cellulophaga_ph_NC_021806	IAS_virus_KJ003983	
+PD-(D E)XK family nuclease	gene85	85	71	Y	Y	Y	Y	Y			Y	Y	Y	Y			Y	Y	Y	Y	Y	Y	
+Terminase	terminase	79	15	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+Portal	portal	78	16	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+putative structural protein	gene77	77	32	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+MCP	MCP	76	33	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+putative structural protein	gene75	75	34	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+putative structural protein	gene74	74	35, 36	Y	Y	Y	Y	Y	Y	Y		  Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+putative structural protein	gene73	73	-	  Y	Y	Y	Y		Y	Y	Y			Y	Y	Y	Y	Y	Y	Y	Y		
+IHF subunit	gene54	54	40	Y	Y	Y	Y	Y	Y	Y	Y	Y		Y	Y	Y	Y	Y	Y	Y	Y	Y	
+IHF subunit	gene53	53	41	Y	Y	Y	Y	Y	Y	Y				Y			Y	Y	Y	Y	Y	Y	
+Tail tubular protein (P22 gp4-like)	gene52	52	34	Y	Y	Y	Y	Y	Y	Y	Y	Y		Y	Y		Y	Y	Y	Y	Y	Y	
+Tail stabilization protein (P22 gp10-like)	gene51	51	44	  Y	Y	Y	Y	Y	Y	Y	Y	Y		Y	Y	Y	Y	Y	Y	Y	Y	Y	
+Putative RNAP subunit	 -	47	47	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+b-b-prime RNAP	 -	46N	49	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+Putative RNAP subunit	 -	46C	48	Y	Y	Y	Y	?	?	Y	?	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+DnaG family primase	primase	22	80_79	Y	Y	Y	Y	Y	Y	Y	Y		Y				Y	Y	Y	Y	Y	Y	
+SNF2 helicase	SNF2_helic18	18	87	Y	Y	Y	Y	Y	Y	Y								Y	Y	Y	Y	Y	
+Uncharacterized protein	gene86	86	13	Y	Y	Y	Y	Y	Y	Y				Y	Y			Y	Y	Y	Y	Y	
+Uncharacterized protein	gene49	49	-	Y	   Y  	Y	Y		Y	Y							Y	Y			Y	Y	
+Uncharacterized protein	gene34	34	 -	Y	Y	Y	Y							Y	Y					Y			
+Siphovirus Gp157 homolog	gene32	32	 -	Y	Y	Y	Y	Y															
+Uncharacterized protein	gene23	23	 -	Y	Y	Y	Y																
+ssb 	gene21	21	 -	Y	Y	Y	Y																
+RecT	gene19	19	 -	Y	Y	Y	Y																
+PolB	PolB	17	 -	Y	Y	Y	Y						Y				Y	Y			Y		
+Uncharacterized protein	gene20	20	 -	Y	Y	Y	Y																
+UDG	UDG	16	75	Y	Y	Y	Y	Y		Y							Y	Y		Y	Y	Y	
+SF1 helicase	SF1_helicase15	15	 -	Y	Y	Y	Y																
+Rep_Org , putative replisome organizer protein 	gene40b	 -	86					Y	Y	Y			Y						Y	Y		Y	
+phage replicative helicase, DnaB family	gene41b	 -	85					Y	Y	Y	Y		Y	Y	Y		Y	Y	Y	Y	Y	Y	
+AAA domain ATPase	gene43b	 -	83					Y	Y	Y	Y	Y	Y	Y				Y	Y	Y	Y	Y	
+Uncharacterized protein 45b	gene45b	 -	81					Y	Y	Y							Y					Y	
+Uncharacterized protein 48b	gene48b	 -	73						Y	Y	Y	Y	Y									Y	
+rIIA protector from prophage-induced early lysis	gene50b	 -	77						Y	Y									Y	Y		Y	
+rIIB protector from prophage-induced early lysis	gene51b	 -	76						Y	Y									Y	Y		Y	
+PolA	PolA	 -	65					Y	Y	Y									Y	Y		Y	

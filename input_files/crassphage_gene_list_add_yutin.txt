@@ -1,0 +1,99 @@
+Protein	Start	End	Accession	Annotation	"new annot/
+renumb."	Yutin gene nr	Region according to Yutin	Conserved in crAss-like family - Yutin (# occurences)	My annot	Note
+KP06_gp01	190	346	NC_024711.1	hypothetical protein		1				
+KP06_gp02	453	1203	NC_024711.1	putative ssb single stranded DNA-binding protein		2				
+KP06_gp03	1183	1312	NC_024711.1	hypothetical protein		3				
+KP06_gp04	1407	1713	NC_024711.1	hypothetical protein		4				
+KP06_gp05	2373	2550	NC_024711.1	hypothetical protein	gene6 (gene5 is skipped)	6				
+KP06_gp06	2691	3318	NC_024711.1	hypothetical protein		7				
+KP06_gp07	3485	3665	NC_024711.1	hypothetical protein		8				
+KP06_gp08	3677	4259	NC_024711.1	hypothetical protein		9				
+KP06_gp09	4637	5000	NC_024711.1	hypothetical protein		10				
+KP06_gp10	5159	5732	NC_024711.1	hypothetical protein		11				
+KP06_gp11	5724	6003	NC_024711.1	hypothetical protein		12				
+KP06_gp12	6146	6479	NC_024711.1	hypothetical protein		13				
+KP06_gp13	6485	6956	NC_024711.1	hypothetical protein		14				
+KP06_gp14	6955	8416	NC_024711.1	putative SF1 helicase		15			gene_fam SF1_helicase15	"Koonin 2020: Numerous crAss-like phages also encode a superfamily 2 (SNF2 family) helicase; the crAssphage clade genomes encode an apparently inactivated derivative of the SNF2 helicase but, additionally, possess a distinct helicase of superfamily 1."
+KP06_gp15	8405	8960	NC_024711.1	putative Uracyl-DNA glycosylase		16	replication		gene_fam UDG	
+KP06_gp16	8952	11280	NC_024711.1	putative DNA polymerase family B		17	replication			"used as hallmark gene by Guerin (to do: check is this correct? Is this the right polymerase?)
+Koonin 2020: DNA Polymerase Family A is ancestral"
+KP06_gp17	11276	12662	NC_024711.1	putative SWI2/SNF2 ATPase, non-canonical Walker A motif		18	replication			
+KP06_gp18	12714	13647	NC_024711.1	putative RecT, phage RecT recombinase		19	replication			
+KP06_gp19	13726	14554	NC_024711.1	hypothetical protein		20	replication			
+KP06_gp20	14663	15683	NC_024711.1	putative ssb single stranded DNA-binding protein		21	replication		gene_fam gene21	
+KP06_gp21	15705	17001	NC_024711.1	putative DnaG family primase		22	replication	15	DNA metabolism	"RNA Polymerase; most conserved replicative gene
+conserved across all crAss-like phage subfamilies (Guerin)"
+KP06_gp22	17029	17371	NC_024711.1	hypothetical protein		23	replication			
+KP06_gp23	17367	17928	NC_024711.1	hypothetical protein		24	replication			
+KP06_gp24	17920	19138	NC_024711.1	putative ATP-dependent DNA ligase		25	replication		gene_fam ligase25	
+KP06_gp25	19118	19502	NC_024711.1	hypothetical protein		26	replication			
+KP06_gp26	19776	20502	NC_024711.1	putative Deoxynucleoside monophosphate kinase		27	replication			
+KP06_gp27	20498	20882	NC_024711.1	putative C4-type zinc finger protein		28	replication			
+KP06_gp28	20868	21738	NC_024711.1	putative flavin-dependent thymidylate synthase		29	replication		gene_fam ThyX	
+KP06_gp29	21721	21988	NC_024711.1	hypothetical protein		30	replication			
+KP06_gp30	21971	22109	NC_024711.1	hypothetical protein		31	replication			
+KP06_gp31	22108	22888	NC_024711.1	putative siphovirus Gp157 family protein, GAM-like host nuclease inhibitor		32	replication			
+KP06_gp32	22964	23084	NC_024711.1	hypothetical protein		33	replication			
+KP06_gp33	23085	24147	NC_024711.1	putative Protein of unknown function (DUF932)		34	replication			
+KP06_gp34	24166	25851	NC_024711.1	putative Dut dUTPase (with intron insertion)		35	replication			
+KP06_gp35	24558	25413	NC_024711.1	putative Intron-encoded HNH endonuclease		36	replication			
+KP06_gp36	25831	26059	NC_024711.1	putative Uncharacterized DUF1653 family protein	gene38 (gene37 is skipped)	38	replication			
+KP06_gp37	26055	26325	NC_024711.1	putative Truncated thioredoxin		39	replication		assembly	"""Thioredoxin is required for filamentous phage assembly"""
+KP06_gp38	26454	27048	NC_024711.1	hypothetical protein		40	replication			
+KP06_gp39	27044	27323	NC_024711.1	putative Thioredoxin		41	replication		assembly	
+KP06_gp40	27326	27491	NC_024711.1	hypothetical protein		42	replication			
+KP06_gp41	27506	27956	NC_024711.1	putative Phage protein of N4_gp49/Sf6_gp66 (pfam13876) family		43	replication			
+KP06_gp42	28321	28504	NC_024711.1	membrane protein	membrane protein 	44	replication			
+KP06_gp43	28717	29272	NC_024711.1	putative Plasmid replication initiation protein RepL		45	replication		DNA metabolism	
+KP06_gp44	29357	41570	NC_024711.1	putative RNAP catalytic subunit fused to unknown RNAP subunit		46	transcription	19	DNA metabolism	N-part mostly conserved
+KP06_gp45	41700	47574	NC_024711.1	putative RNAP associated protein fused to zincin protease		47	transcription	19	DNA metabolism	"one of these KP06_gp44/KP06_gp45 contains highly conserved amino acid motifs that are diagnostic of the ? and ?? subunits of bacterial RNA polymerases (RNAP)
+Thus, it appears likely that, in many crAss-like phages, the mature RNAP is formed via cleavage of a precursor polyprotein. So hypothesis is cleavage by KP06_gp56"
+KP06_gp46	47575	50149	NC_024711.1	hypothetical protein		48				
+KP06_gp47	50139	52713	NC_024711.1	hypothetical protein		49				
+KP06_gp48	52833	53628	NC_024711.1	hypothetical protein		50				
+KP06_gp49	53624	58136	NC_024711.1	putative Phage stabilization protein (pfam11134), P22_gp10 homolog		51	assembly	18		"one of the two most conserved tail proteins (Yutin); 
+Members of this family are phage proteins involved with stabilising the head assembly unit and condensed DNA within the capsid
+The additional domains of this protein could be involved in host recognition similarly to the tail spike protein of P22-like phages"
+KP06_gp50	58138	59068	NC_024711.1	putative Tail tubular protein, P22_gp4		52	assembly	17	tropism	"host recognition, tropism; one of the two most conserved tail proteins (Yutin)"
+KP06_gp51	59039	60002	NC_024711.1	putative Integration host factor IHF subunit, histone-like protein		53	assembly			"essential for viral multiplication;essential for chromatin packaging in bacteria and some phages"
+KP06_gp52	60005	60710	NC_024711.1	putative Integration host factor IHF subunit, histone-like protein		54	assembly	18		"essential for viral multiplication;essential for chromatin packaging in bacteria and some phages"
+KP06_gp53	60711	61038	NC_024711.1	hypothetical protein		55	assembly			
+KP06_gp54	61170	62631	NC_024711.1	putative Phage tail-collar fibre protein (DUF3751)		56	assembly.tail		structural	"my hypothesis: some parts may be conserved?
+Tail is also assembly"
+KP06_gp55	62632	63136	NC_024711.1	putative Tail needle protein, P22_gp26-like		57	assembly.tail		structural	
+KP06_gp56	63217	63559	NC_024711.1	putative Zincin superfamily protease		58	assembly.tail		enzym	"might be involved in processing of the tail and/or capsid proteins (Yutin)
+Koonin 2020: the exception in crAss-like phages; this protease is not present in all crAss-like phages (most podoviruses lack maturation proteases); suggesting an alternative mode of processing of the tail and/or capsid proteins. There is a co-occurence pattern with fused/non-fused forms of KP06_gp44 or KP06_gp45"
+KP06_gp57	63767	64097	NC_024711.1	membrane protein	membrane protein 	59	assembly.tail			
+KP06_gp58	64167	64743	NC_024711.1	hypothetical protein		60	assembly.tail			
+KP06_gp59	64747	65134	NC_024711.1	hypothetical protein		61	assembly.tail			
+KP06_gp60	65138	65654	NC_024711.1	hypothetical protein		62	assembly.tail			
+KP06_gp61	65694	66468	NC_024711.1	putative tail protein		63	assembly.tail			
+KP06_gp62	66574	67678	NC_024711.1	putative tail protein		64	assembly.tail			
+KP06_gp63	67677	69363	NC_024711.1	putative tail protein, similar to UGP_077		65	assembly.tail		structural	
+KP06_gp64	69448	73333	NC_024711.1	putativeBacon (Bacteroidetes-Associated Carbohydrate-binding) domain containing protein		66	assembly.tail			"highly similar to a homologous protein from Bacteroides
+implicated in phage adhesion to mucus that could increase the frequency of the encounters with the host bacteria"
+KP06_gp65	73336	74167	NC_024711.1	putative tail protein		67	assembly.tail		structural	
+KP06_gp66	74192	76283	NC_024711.1	putative Tail fiber protein		68	assembly.tail		structural	
+KP06_gp67	76285	78892	NC_024711.1	putative tail protein, similar to UGP_073		69	assembly.tail		structural	
+KP06_gp68	78955	79483	NC_024711.1	hypothetical protein		70	assembly			
+KP06_gp69	79479	79719	NC_024711.1	hypothetical protein		71	assembly			
+KP06_gp70	79728	80262	NC_024711.1	hypothetical protein		72	assembly			
+KP06_gp71	80372	81236	NC_024711.1	putative Tail sheath protein		73	assembly	15	structural	
+KP06_gp72	81255	81954	NC_024711.1	hypothetical protein		74	assembly	18		
+KP06_gp73	81956	83114	NC_024711.1	hypothetical protein		75	assembly.capsid	19	structural	
+KP06_gp74	83139	84612	NC_024711.1	putative Major capsid protein		76	assembly.capsid	19	structural	conserved across all crAss-like phage subfamilies (Guerin)
+KP06_gp75	84631	85942	NC_024711.1	hypothetical protein		77	assembly.capsid	19	structural	
+KP06_gp76	86284	88696	NC_024711.1	putative Portal protein		78	assembly.capsid	19	structural	conserved across all crAss-like phage subfamilies (Guerin)
+KP06_gp77	88714	90970	NC_024711.1	putative Terminase large subunit		79	assembly.capsid	19	structural	"used by Guerin as a hallmark gene (next to KP06_gp16: DNA Polymerase B)
+conserved across all crAss-like phage subfamilies (Guerin)"
+KP06_gp78	90976	91303	NC_024711.1	hypothetical protein		80				
+KP06_gp79	91316	91586	NC_024711.1	hypothetical protein		81				
+KP06_gp80	91614	92043	NC_024711.1	putative Lysozyme		82			enzyme	
+KP06_gp81	92046	92244	NC_024711.1	hypothetical protein		83				
+KP06_gp82	92247	92598	NC_024711.1	putative Membrane protein, contains peptidoglycan-binding domain		84			tropism	
+KP06_gp83	92594	93602	NC_024711.1	putative PD-(D/E)XK superfamily nuclease		85			DNA metabolism	Restriction endonuclease-like proteins, also called a PD-(D/E)XK nucleases, constitute a large and diverse superfamily of enzymes that are involved in numerous nucleic acid cleavage events important for various cellular processes.
+KP06_gp84	93698	94274	NC_024711.1	hypothetical protein		86				
+KP06_gp85	94257	94824	NC_024711.1	hypothetical protein		87				
+KP06_gp86	94941	95481	NC_024711.1	hypothetical protein		88				
+KP06_gp87	95490	95631	NC_024711.1	hypothetical protein		89				
+KP06_gp88	96137	96794	NC_024711.1	putative Plasmid replication initiation protein RepL		90				
