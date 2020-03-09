@@ -30,6 +30,7 @@ class MakeGenePlots:
     ref = ""  # temporary, it may be that MakeGenePlots will go beyond the level of ref
 
     gene_sample_df = None
+    filtered_gene_sample_df = None
     gene_df = None
     sample_df = None
     gene_anno_df = None
@@ -41,6 +42,8 @@ class MakeGenePlots:
 
     threshold_depth = 0
     threshold_breadth = 0
+
+    all_scores_df = None
 
     def __init__(self, sample_dir, ref_dir, ref, threshold_depth, threshold_breadth):
 
@@ -100,8 +103,8 @@ class MakeGenePlots:
         self.gene_anno_df = pd.read_csv(gene_anno_file_name
                                         ,   sep='\t'
                                         ,   header=None
-                                        ,   usecols=[0, 1, 2]
-                                        ,   names=["Protein", "gene_fam", "Annotation"]
+                                        ,   usecols=[0, 1, 2, 3]
+                                        ,   names=["Protein", "gene_fam", "region", "Annotation"]
                                         )
 
     def prepare_data_for_plots(self):
@@ -131,11 +134,9 @@ class MakeGenePlots:
 
     def create_histograms(self):
 
-        # create a histogram of the occurence of genes across samples
-        data = self.gene_sample_filtered_on_quality()
+        data = self.filtered_gene_sample_df
 
         # we only need the counts per gene
-
         counts_df = data.groupby("Protein").agg(
             {
                 'log10_pN/pS': ["count"]
@@ -155,12 +156,11 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
 
-    def create_heatmaps(self):
+    def create_unfiltered_heat_maps(self):
 
         # use unfiltered data for quality measures (and do not add suffix)
         data = self.gene_sample_df
 
-        # make a heatmap of quality measure AAcoverage_cv
         self.create_heat_map(data, "AAcoverage_cv", "Internal coefficient of variation per gene", add_suffix=False)
         self.create_heat_map(data, "AAcoverage_perc", "Coverage % (compared to whole genome)", add_suffix=False)
 
@@ -174,14 +174,13 @@ class MakeGenePlots:
         self.create_heat_map(data, "double_coverage",
                              "Genes that have > twice the amount of coverage compared to genome", add_suffix=False)
 
-        # filter gene sample on quality (this is per sample per gene!)
-        data = self.gene_sample_filtered_on_quality()
+    def create_filtered_heat_maps(self):
 
-        # also filter out complete samples before showing pN/pS
+        # also filter out complete samples before showing pN/pS and other measures
         # we do not care for samples with a 1x horizontal coverage below 5%
-        filtered_data = self.gene_sample_filtered_on_sample_coverage(data)
+        filtered_data = self.filtered_gene_sample_df
 
-        # make a heatmap of the log10_pN/pS based on multiple samples
+        # make a heat map of the log10_pN/pS based on multiple samples
         self.create_heat_map(filtered_data, "log10_pN/pS", "Log 10 of pN/pS (red=diverging, blue=conserved)")
         self.create_heat_map(filtered_data, "positive_selection", "log10_pN/pS either > -0.3 or < - 0.7")
 
@@ -189,23 +188,12 @@ class MakeGenePlots:
 
         self.create_heat_map(filtered_data, "entropy_mean", "Mean codon entropy (base 10)")
 
-    def gene_sample_filtered_on_quality(self):
+    def filter_gene_sample_on_sample_and_gene_coverage(self):
 
         data = self.gene_sample_df
 
-        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
-        data = data[data[breadth_field] > self.threshold_breadth]
-
-        # this was the old way of filtering (when we always had enough depth in the pilot):
-        # data = data[(data.AAcoverage_perc < 1.5)]
-        # data = data[(data.AAcoverage_perc > 0.2)]
-
-        return data
-
-    def gene_sample_filtered_on_sample_coverage(self, data):
-        # also filter out complete samples before showing pN/pS
-        # we do not care for samples with a 1x horizontal coverage below 5%
         filtered_sample = self.sample_breadth_df[self.sample_breadth_df.breadth_1x.ge(0.05)]
+        filtered_sample = filtered_sample.drop(["breadth_1x", "breadth_10x", "breadth_50x", "breadth_100x"], axis=1)
 
         data = data.merge(filtered_sample,
                           left_on=data["sample"],
@@ -214,7 +202,13 @@ class MakeGenePlots:
 
         data.rename(columns={'sample_x': 'sample'}, inplace=True)
 
-        return data
+        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+
+        self.filtered_gene_sample_df = data[data[breadth_field] > self.threshold_breadth]
+
+        # this was the old way of filtering (when we always had enough depth in the pilot):
+        # data = data[(data.AAcoverage_perc < 1.5)]
+        # data = data[(data.AAcoverage_perc > 0.2)]
 
     # https://seaborn.pydata.org/generated/seaborn.heatmap.html
     def create_heat_map(self, data, measure, title, add_suffix=True):
@@ -263,9 +257,7 @@ class MakeGenePlots:
     # and then merged with self.gene_annotation.df for annotation
     def score_genes_and_output_ordered_genes_to_file(self):
 
-        filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
-
-        self.gene_df = filtered_gene_sample_df.groupby("Protein").agg(
+        self.gene_df = self.filtered_gene_sample_df.groupby("Protein").agg(
             {
                 'log10_pN/pS': ["mean", "count", "std"]
             ,   'entropy_mean': ["mean", "count"]
@@ -292,9 +284,8 @@ class MakeGenePlots:
         merge_df.to_csv(filename, index=False, sep='\t')
 
     def score_samples(self):
-        filtered_gene_sample_df = self.gene_sample_filtered_on_quality()
 
-        self.sample_df = filtered_gene_sample_df.groupby("sample").agg(
+        self.sample_df = self.filtered_gene_sample_df.groupby("sample").agg(
             {
                 'log10_pN/pS':      ["mean", "count", "std"]
             ,   'entropy_mean':     ["mean", "count"]
@@ -368,8 +359,8 @@ class MakeGenePlots:
 
     def create_box_plot(self, filter_data, agg_field, measure, title):
 
-        data = self.gene_sample_filtered_on_quality()
-        # data = self.gene_sample_df
+        data = self.filtered_gene_sample_df
+
         if len(filter_data) == 0:
             logging.warning("no data left after filter applied: cannot create box plot "
                             "for {measure} aggregated on {agg_field}".format(measure=measure, agg_field=agg_field))
@@ -490,17 +481,81 @@ class MakeGenePlots:
 
         self.prepare_data_for_plots()
 
+        self.create_unfiltered_heat_maps()
+
+        self.filter_gene_sample_on_sample_and_gene_coverage()
+
         self.create_histograms()
 
-        self.create_heatmaps()
+        self.create_filtered_heat_maps()
 
         self.score_genes_and_output_ordered_genes_to_file()
 
         self.score_samples()
 
         # create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
-        # after applying the quality filter
+        # after applying the filter (data have been prepared in score_genes_..() and score_samples()
         self.create_box_plots(min_nr_samples)
+
+    def do_family_analysis(self):
+
+        # now read all the files and show how the gene families vary
+        # can I do this in one plot
+
+        # *_GenePlots/crassphage_pN_pS_values.0.2.10x.txt
+        # *_GenePlots/crassphage_pN_pS_values.0.8.10x.txt
+        # *_GenePlots/crassphage_pN_pS_values.0.95.10x.txt
+
+        subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and "_GenePlots" in f.name]
+        samples = []
+
+        for subfolder in subfolders:
+
+            suffix = "{tb}.{td}x".format(tb=self.threshold_breadth, td=self.threshold_depth)
+            file_name = subfolder + self.dir_sep + "crassphage_pN_pS_values.{suffix}.txt".format(suffix=suffix)
+
+            if os.path.isfile(file_name) and os.path.getsize(file_name) > 0:
+                logging.info("processing {}".format(file_name))
+
+                temp_df = pd.read_csv(file_name,
+                                      sep='\t',
+                                         )
+                samples.append(temp_df)
+
+        self.all_scores_df = pd.concat(samples).reset_index()
+
+        family_df = self.all_scores_df[self.all_scores_df.gene_fam.isnull() == False]
+
+        family_df["long_annot"] = family_df.gene_fam + family_df.Annotation
+
+        title = "Family values"
+
+        plt.title("{title} ({breadth}/{depth}x)".
+                  format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
+
+        sns.set(style="ticks")
+
+        measure = "log10_pN/pS_mean"
+        agg_field = "long_annot"
+        # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
+        # we should probably recalculate p_N/p_S with a pseudocount
+        sns.boxplot(x=measure, y=agg_field, data=family_df,
+                    whis="range", palette="vlag")
+
+        sns.swarmplot(x=measure, y=agg_field, data=family_df,
+                      size=2, color=".3", linewidth=0)
+
+        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
+        os.makedirs(self.plot_dir, exist_ok=True)
+        figure_name = "{}{}family_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.pdf".format(
+            self.plot_dir, self.dir_sep, agg_field,
+            measure=measure.replace("/", "_"), title=title.replace(" ", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        # plt.show()
+        plt.savefig(figure_name)
+
+        return
 
 
 def do_analysis(args_in):
@@ -510,7 +565,7 @@ def do_analysis(args_in):
     parser.add_argument("-d", "--sample_dir", dest="sample_dir",
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
     parser.add_argument("-r", "--ref", dest="ref",
-                        help="reference genome id", metavar="[ref]", required=True)
+                        help="reference genome id", metavar="[ref]", required=False)
 
     parser.add_argument("-rd", "--ref_dir", dest="ref_dir",
                         help="directory reference genomes", metavar="[ref_dir]", required=True)
@@ -525,11 +580,15 @@ def do_analysis(args_in):
                         type=float,
                         help="threshold for breadth, between 0 and 1, will be combined with threshold for depth")
 
+    parser.add_argument("-a", "--all", action="store_true", default=False,
+                        help="run all samples in sample directory", required=False)
+
     args = parser.parse_args(args_in)
 
     print("Start running MakeGenePlots")
     print("sample_dir: " + args.sample_dir)
-    print("reference gemome id (ref): " + args.ref)
+    if args.ref:
+        print("reference gemome id (ref): " + args.ref)
 
     if not args.min_nr_samples:
         args.min_nr_samples = 3
@@ -543,10 +602,12 @@ def do_analysis(args_in):
 
     make = MakeGenePlots(args.sample_dir, args.ref_dir, args.ref, args.threshold_depth, args.threshold_breadth)
 
-    # to do: also add a level of analysis that goes beyond one ref?
+    # also add a level of analysis that goes beyond one ref?
     # it might integrate the _gene_measures.txt created earlier
-    make.do_analysis(args.min_nr_samples, args.ref)
-
+    if args.all:
+        make.do_family_analysis()
+    else:
+        make.do_analysis(args.min_nr_samples, args.ref)
 
 if __name__ == "__main__":
     do_analysis(sys.argv[1:])
@@ -554,8 +615,11 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref="crassphage_refseq"
-# # ref="sib1_ms_5"
+# ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
 # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+
+# temporary way of analyzing gene families
+# do_analysis(["-d", sample_dir, "-rd", rd, "-a", "-td", "10", "-tb", "0.80"])
 
 
