@@ -198,13 +198,24 @@ class MakeGenePlots:
         data = data.merge(filtered_sample,
                           left_on=data["sample"],
                           right_on=filtered_sample["sample"],
-                          how="inner").drop(["key_0"], axis=1)
+                          how="inner").drop(["key_0"], axis=1).drop(["sample_y"], axis=1)
 
         data.rename(columns={'sample_x': 'sample'}, inplace=True)
 
         breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
 
-        self.filtered_gene_sample_df = data[data[breadth_field] > self.threshold_breadth]
+        data = data[data[breadth_field] > self.threshold_breadth]
+
+        # add annotation, e.g. region
+        merge_df = data.merge(self.gene_anno_df
+                              , left_on=data.Protein
+                              , right_on=self.gene_anno_df.Protein
+                              , how='left').drop(["Protein_x", "Protein_y"], axis=1)
+        merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
+
+        assert(len(data) == len(merge_df))
+
+        self.filtered_gene_sample_df = merge_df
 
         # this was the old way of filtering (when we always had enough depth in the pilot):
         # data = data[(data.AAcoverage_perc < 1.5)]
@@ -269,14 +280,14 @@ class MakeGenePlots:
         self.gene_df = self.gene_df.sort_values(by='log10_pN/pS_mean', ascending=False)
 
         merge_df = self.gene_df.merge(self.gene_anno_df
-                                     , left_on=self.gene_df.Protein
-                                     , right_on=self.gene_anno_df.Protein
-                                     , how='inner')
+                                      , left_on=self.gene_df.Protein
+                                      , right_on=self.gene_anno_df.Protein
+                                      , how='inner')
         merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
 
         # to do: also add gene_fam as a key for combining Protein later on
-        merge_df = merge_df[['Protein','gene_fam',
-                             'log10_pN/pS_mean','log10_pN/pS_std','log10_pN/pS_count','Annotation']]
+        merge_df = merge_df[['Protein', 'gene_fam',
+                             'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'Annotation']]
 
         filename = self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.{breadth}.{depth}x.txt".format(
             depth=self.threshold_depth, breadth=self.threshold_breadth
@@ -406,6 +417,37 @@ class MakeGenePlots:
         )
         plt.savefig(figure_name)
 
+    def create_region_plot(self):
+
+        data = self.filtered_gene_sample_df
+        data.loc[data.region == "assembly", "region"] = "assembly.rest"
+
+        measure = "log10_pN/pS"
+        agg_field = "region"
+        title = "{measure} per region".format(measure=measure)
+
+        plt.figure(figsize=(12, 5))
+        plt.title("{ref}: {title} ({breadth}/{depth}x)".
+                  format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
+
+        sns.set(style="ticks")
+
+        # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
+        # we should probably recalculate p_N/p_S with a pseudocount
+        sns.boxplot(x=measure, y=agg_field, data=data,
+                    whis="range", color="white")
+
+        sns.swarmplot(x=measure, y=agg_field, data=data,
+                      size=2, color=".3", linewidth=0)
+
+        figure_name = "{}{}gene_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
+            self.plot_dir, self.dir_sep, agg_field,
+            measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        # plt.show()
+        plt.savefig(figure_name)
+
     def create_bin_line_plots_for_pn_ps(self):
         # make line plots based on
         # aggregation of bin_sample_df
@@ -496,6 +538,8 @@ class MakeGenePlots:
         # create box plots for top 10 and bottom 10 pN/pS values for genes with a minimum nr of samples for that gene
         # after applying the filter (data have been prepared in score_genes_..() and score_samples()
         self.create_box_plots(min_nr_samples)
+
+        self.create_region_plot()
 
     def do_family_analysis(self):
 
