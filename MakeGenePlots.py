@@ -61,23 +61,27 @@ class MakeGenePlots:
         logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'MakeGenePlots.log', filemode='w', format='%(asctime)s - %(message)s',
                             level=logging.INFO)
 
-    def read_files(self, ref):
+    def read_files_for_ref(self, ref):
 
         logging.info("start reading tables")
 
-        self.gene_sample_df = self.read_and_concat_sample_measures(ref, "_gene_measures.txt")
+        self.gene_sample_df = self.read_and_concat_measures("_gene_measures.txt", ref)
 
-        self.read_gene_annotation(ref)
+        self.gene_anno_df = self.read_gene_annotation(ref)
 
-        self.bin_sample_df = self.read_and_concat_sample_measures(ref, "_bin_measures.txt")
+        self.bin_sample_df = self.read_and_concat_measures("_bin_measures.txt", ref)
 
-        self.sample_breadth_df = self.read_and_concat_sample_measures(ref, "_sample_measures.txt")
+        self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt", ref)
 
         logging.info("finished reading tables")
 
-    def read_and_concat_sample_measures(self, ref, file_name_ext):
+    def read_and_concat_measures(self, file_name_ext, ref=None):
 
-        subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and ref in f.name]
+        if ref:
+            subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and ref in f.name]
+        else:
+            subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and "GenePlots" not in f.name]
+
         samples = []
 
         for subfolder in subfolders:
@@ -100,12 +104,13 @@ class MakeGenePlots:
         gene_anno_file_name = self.ref_dir + self.dir_sep + "{ref}_gene_list.txt".format(ref=ref)
 
         # to do also read gene_fam_x (to be produced by AnnotateCrassGenomes)
-        self.gene_anno_df = pd.read_csv(gene_anno_file_name
-                                        ,   sep='\t'
-                                        ,   header=None
-                                        ,   usecols=[0, 1, 2, 3]
-                                        ,   names=["Protein", "gene_fam", "region", "Annotation"]
-                                        )
+        anno_df = pd.read_csv(gene_anno_file_name
+                              ,   sep='\t'
+                              ,   header=None
+                              ,   usecols=[0, 1, 2, 3]
+                              ,   names=["Protein", "gene_fam", "region", "Annotation"]
+                              )
+        return anno_df
 
     def prepare_data_for_plots(self):
 
@@ -515,7 +520,7 @@ class MakeGenePlots:
 
     def do_analysis(self, min_nr_samples, ref):
 
-        self.read_files(ref)
+        self.read_files_for_ref(ref)
 
         self.create_plot_dir(ref)
 
@@ -541,7 +546,46 @@ class MakeGenePlots:
 
         self.create_region_plot()
 
+    def read_all_files_for_family(self):
+
+        logging.info("start reading tables")
+
+        self.gene_sample_df = self.read_and_concat_measures("_gene_measures.txt")
+
+        # to do: read all annotations of all refs
+        self.gene_anno_df = self.read_all_annotations()
+
+        # self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt", ref)
+
+        logging.info("finished reading tables")
+
+    def read_all_annotations(self):
+
+        files = [f.path for f in os.scandir(self.ref_dir) if not f.is_dir() and "_gene_list.txt" in f.name]
+
+        anno_list = []
+
+        for file in files:
+            anno_df = pd.read_csv(file
+                                  , sep='\t'
+                                  , header=None
+                                  , usecols=[0, 1, 2, 3]
+                                  , names=["Protein", "gene_fam", "region", "Annotation"]
+                                  , skiprows=1
+                                  )
+            anno_list.append(anno_df)
+
+        return pd.concat(anno_list)
+
     def do_family_analysis(self):
+
+        self.read_all_files_for_family()
+
+        # to do: continue with all files for family
+
+        self.quick_and_dirty_family_analysis()
+
+    def quick_and_dirty_family_analysis(self):
 
         # now read all the files and show how the gene families vary
         # can I do this in one plot
@@ -624,8 +668,9 @@ def do_analysis(args_in):
                         type=float,
                         help="threshold for breadth, between 0 and 1, will be combined with threshold for depth")
 
-    parser.add_argument("-a", "--all", action="store_true", default=False,
-                        help="run all samples in sample directory", required=False)
+    parser.add_argument("-f", "--family", action="store_true", default=False,
+                        help="run analysis on gene families based on the pN/pS values for individual genes",
+                        required=False)
 
     args = parser.parse_args(args_in)
 
@@ -648,22 +693,23 @@ def do_analysis(args_in):
 
     # also add a level of analysis that goes beyond one ref?
     # it might integrate the _gene_measures.txt created earlier
-    if args.all:
+    if args.family:
         make.do_family_analysis()
     else:
         make.do_analysis(args.min_nr_samples, args.ref)
 
+
 if __name__ == "__main__":
     do_analysis(sys.argv[1:])
 
-#TODO for testing, do not use in production
+# to do; for testing, do not use in production
 # sample_dir=r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref="crassphage_refseq"
-# ref="sib1_ms_5"
+# # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
-
-# temporary way of analyzing gene families
-# do_analysis(["-d", sample_dir, "-rd", rd, "-a", "-td", "10", "-tb", "0.80"])
+# # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+#
+# # gene family analyis (with -f option)
+# do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.80"])
 
 
