@@ -142,6 +142,12 @@ class MakeSamplePlots:
 
         self.merge_df = merge_df
 
+    def apply_threshold(self):
+
+        merge_df = self.merge_df
+
+        self.merge_df = merge_df[merge_df.breadth_1x > 0.05]
+
     def make_bar_plot(self):
 
         figure_name = "{}{}sample_plots.totals.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
@@ -163,7 +169,7 @@ class MakeSamplePlots:
         nr_mappings = len(self.merge_df)
         logging.info("nr of non-zero mappings among samples: {nr_mappings}".format(nr_mappings=nr_mappings))
 
-        self.merge_df["log10_mapped"] = np.log10(self.merge_df.mapped)
+        self.merge_df["log10_mapped"] = np.log10(self.merge_df.mapped_norm)
 
         self.merge_df["genus"] = self.merge_df.apply(self.shorten_genus, axis=1)
 
@@ -179,52 +185,6 @@ class MakeSamplePlots:
         df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
 
         self.genus_sorted_df = df.sort_values('mapped_sum', ascending=False)
-
-        debug = "True"
-
-    # specific ERP005989 enrichment
-    # prepare data plot for the project that contains metadata about age in the sample name
-    def prepare_specifics_for_project(self):
-
-        merge_df = self.merge_df
-        merge_df["age_cat_short"] = merge_df.apply(self.age_category, axis=1)
-        merge_df["family"] = merge_df.apply(self.family, axis=1)
-
-        merge_df.loc[merge_df.age_cat_short == "B", "age_cat"] = "1. baby"
-        merge_df.loc[merge_df.age_cat_short == "4M", "age_cat"] = "2. 4 months"
-        merge_df.loc[merge_df.age_cat_short == "12M", "age_cat"] = "3. 12 months"
-        merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "4. mother"
-
-        self.merge_df = merge_df.sort_values("age_cat")
-
-    @staticmethod
-    def family(row):
-        return row.sample_name.split("_")[0]
-
-    @staticmethod
-    def age_category(row):
-        return row.sample_name.split("_")[1]
-
-    @staticmethod
-    def shorten_genus(row):
-        return row.genus.replace("genus_", "")
-
-    # this is a specific plot for the project that contains metadata about age in the sample name
-    def make_abundance_plots(self):
-
-        self.make_category_plot("swarm")
-        self.make_category_plot("box")
-
-    def make_category_plot(self, kind):
-        sns.catplot(x="genus", y="log10_mapped", kind=kind, data=self.merge_df, hue="age_cat",
-                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
-
-        plt.title("log abundance of mapped reads for one ref genome per genus")
-
-        figure_name = "{}{}sample_plots.categories.mapped.genus.{kind}.pdf".format(self.plot_dir, self.dir_sep,
-                                                                                   kind=kind)
-        plt.savefig(figure_name)
-        plt.clf()
 
     @staticmethod # note: breadth is a pandas series, ge means greater or equal than
     def ge_1_perc(breadth):
@@ -275,8 +235,51 @@ class MakeSamplePlots:
                 plt.savefig(figure_name)
                 plt.clf()
 
-        debug = True
+    # specific ERP005989 enrichment
+    # prepare data plot for the project that contains metadata about age in the sample name
+    def prepare_specifics_for_project(self):
 
+        merge_df = self.merge_df
+        merge_df["age_cat_short"] = merge_df.apply(self.age_category, axis=1)
+        merge_df["family"] = merge_df.apply(self.family, axis=1)
+
+        merge_df.loc[merge_df.age_cat_short == "B", "age_cat"] = "1. baby"
+        merge_df.loc[merge_df.age_cat_short == "4M", "age_cat"] = "2. 4 months"
+        merge_df.loc[merge_df.age_cat_short == "12M", "age_cat"] = "3. 12 months"
+        merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "4. mother"
+
+        self.merge_df = merge_df.sort_values("age_cat")
+
+    @staticmethod
+    def family(row):
+        return row.sample_name.split("_")[0]
+
+    @staticmethod
+    def age_category(row):
+        return row.sample_name.split("_")[1]
+
+    @staticmethod
+    def shorten_genus(row):
+        return row.genus.replace("genus_", "")
+
+    # this is a specific plot for the project that contains metadata about age in the sample name
+    def make_abundance_plots(self):
+
+        self.make_category_plot("swarm")
+        self.make_category_plot("box")
+
+    def make_category_plot(self, kind):
+
+        # to do: we should filter out the reads that are not above the 5% 1x threshold
+        sns.catplot(x="genus", y="log10_mapped", kind=kind, data=self.merge_df, hue="age_cat",
+                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
+
+        plt.title("log abundance of normalized mapped reads for one ref genome per genus")
+
+        figure_name = "{}{}sample_plots.categories.mapped.genus.{kind}.pdf".format(self.plot_dir, self.dir_sep,
+                                                                                   kind=kind)
+        plt.savefig(figure_name)
+        plt.clf()
 
     def make_scatter_plots(self):
         # total number of mappings between age 4 and 12 months and mother?
@@ -322,8 +325,7 @@ class MakeSamplePlots:
             x_value=x_value, y_value=y_value, genus=genus
         )
         plt.savefig(figure_name)
-        s_plot.clear()
-        plt.close(s_plot)
+        plt.clf()
 
     def create_plot_dir(self):
 
@@ -340,16 +342,18 @@ class MakeSamplePlots:
 
         self.prepare_data()
 
+        self.make_filter_sample_plots()
+
+        self.apply_threshold()
+
         self.make_bar_plot()
 
         self.prepare_specifics_for_project()
 
         self.make_abundance_plots()
 
-        self.make_filter_sample_plots()
-
         verbose = False
-        # some verbose stuff:
+
         if verbose:
             self.make_scatter_plots()
 
@@ -374,8 +378,6 @@ def do_analysis(args_in):
 # if __name__ == "__main__":
 #     do_analysis(sys.argv[1:])
 
-#TODO for testing, do not use in production
+# to do for testing, do not use in production
 project_dir= r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 do_analysis(["-d", project_dir])
-
-# D:\17 Dutihl Lab\_tools\_pipeline\ERP005989
