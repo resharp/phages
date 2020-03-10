@@ -631,4 +631,5 @@ if __name__ == "__main__":
 
 # or run one sample, or a list of
 # sample = "ERR525804"
+# sample = "ERR525717" # sample with 93 reads and ~8% 1x
 # run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
