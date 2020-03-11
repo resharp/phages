@@ -619,15 +619,18 @@ class MakeGenePlots:
         fig, ax = plt.subplots(figsize=(12, 5))
 
         ref_nr = 0
+
+        if measure == "count":
+            max_y = df[measure].max() + 1
+        else:
+            max_y = df[measure].max() + 0.01
+
         for ref in refs:
 
             df_ref = df[df.ref == ref]
 
             plt.xlim(0, 1)
-            if measure == "count":
-                plt.ylim(0, df_ref[measure].max() + 1)
-            else:
-                plt.ylim(0, df_ref[measure].max() + 0.01)
+            plt.ylim(0, max_y)
 
             sns.lineplot(x=df_ref.percentage,
                          y=df_ref[measure],
