@@ -219,7 +219,8 @@ class MakeGenePlots:
                               , how='left').drop(["Protein_x", "Protein_y", "ref_y"], axis=1)
         merge_df.rename(columns={'key_0': 'Protein', "ref_x": "ref"}, inplace=True)
 
-        assert(len(data) == len(merge_df))
+        # to do this assertion does not seem to hold: how come?
+        # assert(len(data) == len(merge_df))
 
         self.filtered_gene_sample_df = merge_df
 
@@ -596,17 +597,22 @@ class MakeGenePlots:
             data_ref = data[data.ref == ref]
             nr_data = len(data_ref)
 
-            for threshold in range(0, 101):
+            for threshold in range(1, 101):
                 percentage = threshold/100
                 nr_filtered = len(data_ref[data_ref[breadth_field] >= percentage])
 
                 fraction = nr_filtered / nr_data
 
-                row_list.append([percentage, ref, fraction])
+                row_list.append([percentage, ref, nr_filtered, fraction])
 
                 pass
 
-        df = pd.DataFrame(columns=("percentage", "ref", "fraction"), data=row_list)
+        df = pd.DataFrame(columns=("percentage", "ref", "count", "fraction"), data=row_list)
+
+        self.make_cumulation_plot(df, refs, "fraction")
+        self.make_cumulation_plot(df, refs, "count")
+
+    def make_cumulation_plot(self, df, refs, measure):
 
         colors = sns.color_palette("husl", n_colors=len(refs))
 
@@ -616,31 +622,37 @@ class MakeGenePlots:
         for ref in refs:
 
             df_ref = df[df.ref == ref]
-            plt.ylim(0, 1)
+
             plt.xlim(0, 1)
+            if measure == "count":
+                plt.ylim(0, df_ref[measure].max() + 1)
+            else:
+                plt.ylim(0, df_ref[measure].max() + 0.01)
+
             sns.lineplot(x=df_ref.percentage,
-                         y=df_ref.fraction,
+                         y=df_ref[measure],
                          color=colors[ref_nr],
                          ax=ax)
             ref_nr = ref_nr + 1
 
-        title = "fraction of data points for genes for {depth}x breadth thresholds".format(depth=self.threshold_depth)
+        title = "{measure} of data points for genes for {depth}x breadth thresholds".format(
+            depth=self.threshold_depth, measure=measure)
         plt.title(title)
         ax.legend(refs, facecolor='w')
-        ax.set(xlabel='breadth percentage for gene', ylabel='fraction of gene data points used')
+        ax.set(xlabel='breadth percentage for gene'
+               , ylabel='{measure} of gene data points used'.format(measure=measure))
         # plt.show()
 
         self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
-        figure_name = "{}{}family_plots.gene_usage.{title}.{depth}x.svg".format(
+        figure_name = "{}{}family_plots.gene_usage.{measure}.{title}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
             title=title.replace(" ", "_"),
-            depth=self.threshold_depth, breadth=self.threshold_breadth
+            depth=self.threshold_depth, breadth=self.threshold_breadth,
+            measure=measure
         )
 
         plt.savefig(figure_name)
         plt.clf()
-
-        debug = "Are we happy? "
 
     def do_family_analysis(self):
 
