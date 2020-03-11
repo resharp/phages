@@ -452,7 +452,7 @@ class MakeGenePlots:
             measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
-        # plt.show()
+
         plt.savefig(figure_name)
 
     def create_bin_line_plots_for_pn_ps(self):
@@ -610,6 +610,7 @@ class MakeGenePlots:
         df = pd.DataFrame(columns=("percentage", "ref", "count", "fraction"), data=row_list)
 
         self.make_cumulation_plot(df, refs, "fraction")
+
         self.make_cumulation_plot(df, refs, "count")
 
     def make_cumulation_plot(self, df, refs, measure):
@@ -657,16 +658,57 @@ class MakeGenePlots:
         plt.savefig(figure_name)
         plt.clf()
 
-    def do_family_analysis(self):
+    def rank_gene_families(self):
 
-        self.read_all_files_for_family()
+        data = self.filtered_gene_sample_df
 
-        # to do: continue with all files for family
-        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
+        data = data[data.gene_fam.isnull() == False]
 
-        self.breadth_statistics()
+        # now first aggregate on gene_fam log10_pN/pS
 
-        self.quick_and_dirty_family_analysis()
+        df_fam = data.groupby("gene_fam").agg(
+            {
+                'log10_pN/pS': ["mean", "count"]
+            }).reset_index()
+
+        df_fam.columns = ["_".join(x) for x in df_fam.columns.ravel()]
+        df_fam.rename(columns={'gene_fam_': 'gene_fam'}, inplace=True)
+
+        df_fam = df_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
+
+        df_top_fam = df_fam.tail(5)
+
+        data = data.merge(df_top_fam,
+                          left_on=data.gene_fam,
+                          right_on=df_top_fam.gene_fam,
+                          how="inner").drop(["key_0", "gene_fam_y"], axis=1)
+        data.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
+
+        self.plot_family_and_ref(data=data, kind="swarm", ds_order=df_top_fam.gene_fam)
+        self.plot_family_and_ref(data=data, kind="box", ds_order=df_top_fam.gene_fam)
+
+    # to do: better name
+    def plot_family_and_ref(self, data, kind, ds_order):
+
+        gene_fams = data.gene_fam.unique()
+
+        sns.catplot(x="gene_fam", y="log10_pN/pS", kind=kind, data=data, hue="ref",
+                    palette=sns.color_palette(n_colors=len(gene_fams)),
+                    order=ds_order, height=3.5, aspect=3)
+
+        title ="top 5 most conserved gene families {breadth}/{depth}x".format(
+            breadth=self.threshold_breadth, depth=self.threshold_depth)
+        plt.title(title)
+
+        figure_name = "{}{}family_plots.families_ranked.{kind}.{title}.{depth}x.svg".format(
+            self.plot_dir, self.dir_sep,
+            title=title.replace(" ", "_").replace("/", "_"),
+            kind=kind,
+            depth=self.threshold_depth, breadth=self.threshold_breadth,
+        )
+
+        plt.savefig(figure_name)
+        plt.clf()
 
     def quick_and_dirty_family_analysis(self):
 
@@ -700,17 +742,17 @@ class MakeGenePlots:
 
         family_df = self.all_scores_df[self.all_scores_df.gene_fam.isnull() == False]
 
-        family_df["long_annot"] = family_df.gene_fam + family_df.Annotation
+        # family_df["long_annot"] = family_df.gene_fam + family_df.Annotation
 
         title = "Family values"
-
+        plt.figure(figsize=(12, 10))
         plt.title("{title} ({breadth}/{depth}x)".
                   format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         sns.set(style="ticks")
 
         measure = "log10_pN/pS_mean"
-        agg_field = "long_annot"
+        agg_field = "gene_fam"
         # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
         sns.boxplot(x=measure, y=agg_field, data=family_df,
@@ -721,7 +763,7 @@ class MakeGenePlots:
 
         self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
         os.makedirs(self.plot_dir, exist_ok=True)
-        figure_name = "{}{}family_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.pdf".format(
+        figure_name = "{}{}family_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep, agg_field,
             measure=measure.replace("/", "_"), title=title.replace(" ", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
@@ -730,6 +772,20 @@ class MakeGenePlots:
         plt.savefig(figure_name)
 
         return
+
+    def do_family_analysis(self):
+
+        self.read_all_files_for_family()
+
+        # to do: continue with all files for family
+        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
+
+        self.breadth_statistics()
+
+        self.rank_gene_families()
+
+        self.quick_and_dirty_family_analysis()
+
     #endregion
 
 
