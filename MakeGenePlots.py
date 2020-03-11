@@ -193,7 +193,7 @@ class MakeGenePlots:
 
         self.create_heat_map(filtered_data, "entropy_mean", "Mean codon entropy (base 10)")
 
-    def filter_gene_sample_on_sample_and_gene_coverage(self):
+    def filter_gene_sample_on_sample_and_gene_coverage(self, filter_genes=False):
 
         data = self.gene_sample_df
 
@@ -209,14 +209,15 @@ class MakeGenePlots:
 
         breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
 
-        data = data[data[breadth_field] > self.threshold_breadth]
+        if filter_genes:
+            data = data[data[breadth_field] > self.threshold_breadth]
 
         # add annotation, e.g. region
         merge_df = data.merge(self.gene_anno_df
                               , left_on=data.Protein
                               , right_on=self.gene_anno_df.Protein
-                              , how='left').drop(["Protein_x", "Protein_y"], axis=1)
-        merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
+                              , how='left').drop(["Protein_x", "Protein_y", "ref_y"], axis=1)
+        merge_df.rename(columns={'key_0': 'Protein', "ref_x": "ref"}, inplace=True)
 
         assert(len(data) == len(merge_df))
 
@@ -530,7 +531,7 @@ class MakeGenePlots:
 
         self.create_unfiltered_heat_maps()
 
-        self.filter_gene_sample_on_sample_and_gene_coverage()
+        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=True)
 
         self.create_histograms()
 
@@ -546,6 +547,7 @@ class MakeGenePlots:
 
         self.create_region_plot()
 
+    #region family analysis
     def read_all_files_for_family(self):
 
         logging.info("start reading tables")
@@ -555,7 +557,7 @@ class MakeGenePlots:
         # to do: read all annotations of all refs
         self.gene_anno_df = self.read_all_annotations()
 
-        # self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt", ref)
+        self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt")
 
         logging.info("finished reading tables")
 
@@ -573,15 +575,81 @@ class MakeGenePlots:
                                   , names=["Protein", "gene_fam", "region", "Annotation"]
                                   , skiprows=1
                                   )
+            ref = file.split(self.dir_sep)[-1].replace("_gene_list.txt", "")
+            anno_df["ref"] = ref
+
             anno_list.append(anno_df)
 
         return pd.concat(anno_list)
+
+    def breadth_statistics(self):
+
+        data = self.filtered_gene_sample_df
+
+        refs = data.ref.unique()
+
+        row_list = []
+
+        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+
+        for ref in refs:
+            data_ref = data[data.ref == ref]
+            nr_data = len(data_ref)
+
+            for threshold in range(0, 101):
+                percentage = threshold/100
+                nr_filtered = len(data_ref[data_ref[breadth_field] >= percentage])
+
+                fraction = nr_filtered / nr_data
+
+                row_list.append([percentage, ref, fraction])
+
+                pass
+
+        df = pd.DataFrame(columns=("percentage", "ref", "fraction"), data=row_list)
+
+        colors = sns.color_palette("husl", n_colors=len(refs))
+
+        fig, ax = plt.subplots(figsize=(12, 5))
+
+        ref_nr = 0
+        for ref in refs:
+
+            df_ref = df[df.ref == ref]
+            plt.ylim(0, 1)
+            plt.xlim(0, 1)
+            sns.lineplot(x=df_ref.percentage,
+                         y=df_ref.fraction,
+                         color=colors[ref_nr],
+                         ax=ax)
+            ref_nr = ref_nr + 1
+
+        title = "fraction of data points for genes for {depth}x breadth thresholds".format(depth=self.threshold_depth)
+        plt.title(title)
+        ax.legend(refs, facecolor='w')
+        ax.set(xlabel='breadth percentage for gene', ylabel='fraction of gene data points used')
+        # plt.show()
+
+        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
+        figure_name = "{}{}family_plots.gene_usage.{title}.{depth}x.svg".format(
+            self.plot_dir, self.dir_sep,
+            title=title.replace(" ", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+
+        plt.savefig(figure_name)
+        plt.clf()
+
+        debug = "Are we happy? "
 
     def do_family_analysis(self):
 
         self.read_all_files_for_family()
 
         # to do: continue with all files for family
+        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
+
+        self.breadth_statistics()
 
         self.quick_and_dirty_family_analysis()
 
@@ -609,6 +677,9 @@ class MakeGenePlots:
                                       sep='\t',
                                          )
                 samples.append(temp_df)
+
+        if len(samples) == 0:
+            return
 
         self.all_scores_df = pd.concat(samples).reset_index()
 
@@ -644,6 +715,7 @@ class MakeGenePlots:
         plt.savefig(figure_name)
 
         return
+    #endregion
 
 
 def do_analysis(args_in):
