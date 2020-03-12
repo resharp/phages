@@ -676,6 +676,17 @@ class MakeGenePlots:
 
         df_fam = df_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
 
+        data_new = data.merge(df_fam,
+                              left_on=data.gene_fam,
+                              right_on=df_fam.gene_fam,
+                              how="inner").drop(["key_0", "gene_fam_y"], axis=1)
+        data_new.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
+
+        data_new = data_new.sort_values(by='log10_pN/pS_mean', ascending=False)
+        # to do: call figure here
+        measure = "log10_pN/pS"
+        self.make_box_swarm_plot(data_new, measure)
+
         df_top_fam = df_fam.tail(5)
 
         data = data.merge(df_top_fam,
@@ -740,7 +751,13 @@ class MakeGenePlots:
 
         family_df = self.all_scores_df[self.all_scores_df.gene_fam.isnull() == False]
 
+        family_df = family_df.sort_values(by='log10_pN/pS_mean', ascending=False)
         # family_df["long_annot"] = family_df.gene_fam + family_df.Annotation
+
+        measure = "log10_pN/pS_mean"
+        self.make_box_swarm_plot(family_df, measure)
+
+    def make_box_swarm_plot(self, family_df, measure):
 
         title = "Family values"
         plt.figure(figsize=(12, 10))
@@ -749,7 +766,6 @@ class MakeGenePlots:
 
         sns.set(style="ticks")
 
-        measure = "log10_pN/pS_mean"
         agg_field = "gene_fam"
         # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
