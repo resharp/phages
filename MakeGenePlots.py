@@ -690,10 +690,8 @@ class MakeGenePlots:
     # to do: better name
     def plot_family_and_ref(self, data, kind, ds_order):
 
-        gene_fams = data.gene_fam.unique()
-
         sns.catplot(x="gene_fam", y="log10_pN/pS", kind=kind, data=data, hue="ref",
-                    palette=sns.color_palette(n_colors=len(gene_fams)),
+                    palette=sns.color_palette(n_colors=10),
                     order=ds_order, height=3.5, aspect=3)
 
         title ="top 5 most conserved gene families {breadth}/{depth}x".format(
