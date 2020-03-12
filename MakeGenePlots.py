@@ -207,9 +207,8 @@ class MakeGenePlots:
 
         data.rename(columns={'sample_x': 'sample'}, inplace=True)
 
-        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
-
         if filter_genes:
+            breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
             data = data[data[breadth_field] > self.threshold_breadth]
 
         # add annotation, e.g. region
@@ -666,6 +665,7 @@ class MakeGenePlots:
 
         # now first aggregate on gene_fam log10_pN/pS
 
+        # to do: write this to text file
         df_fam = data.groupby("gene_fam").agg(
             {
                 'log10_pN/pS': ["mean", "count"]
@@ -781,6 +781,12 @@ class MakeGenePlots:
         self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
 
         self.breadth_statistics()
+
+        # to do: now we should probably filter the genes!
+        data = self.filtered_gene_sample_df
+        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+        data = data[data[breadth_field] > self.threshold_breadth]
+        self.filtered_gene_sample_df = data
 
         self.rank_gene_families()
 
