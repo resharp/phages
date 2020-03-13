@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns;sns.set()
+from scipy.stats import ks_2samp
 import sys
 
 # MakeGenePlots
@@ -215,7 +216,7 @@ class MakeGenePlots:
         merge_df = data.merge(self.gene_anno_df
                               , left_on=data.Protein
                               , right_on=self.gene_anno_df.Protein
-                              , how='left').drop(["Protein_x", "Protein_y", "ref_y"], axis=1)
+                              , how='left').drop(["Protein_x", "Protein_y"], axis=1)
         merge_df.rename(columns={'key_0': 'Protein', "ref_x": "ref"}, inplace=True)
 
         # to do this assertion does not seem to hold: how come?
@@ -428,6 +429,8 @@ class MakeGenePlots:
         data = self.filtered_gene_sample_df
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
+        data.loc[pd.isnull(data.region), "region"] = "other"
+
         measure = "log10_pN/pS"
         agg_field = "region"
         title = "{measure} per region".format(measure=measure)
@@ -451,6 +454,43 @@ class MakeGenePlots:
             measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
+
+        plt.savefig(figure_name)
+        plt.clf()
+        self.make_ks_heat_maps(data, measure)
+
+    def make_ks_heat_maps(self, data, measure):
+
+        ks_data = pd.DataFrame(columns=['region1', 'region2', 'measure'])
+        ks_data.set_index(['region1', 'region2'])
+
+        regions1 = data.region.unique()
+        regions2 = data.region.unique()
+        for region1 in regions1:
+            for region2 in regions2:
+                ds_1 = data[data.region == region1][measure]
+                ds_2 = data[data.region == region2][measure]
+
+                ks_result = ks_2samp(data1=ds_1, data2=ds_2)
+                ks_data.loc[region1, region2] = ks_result.pvalue
+
+        ks_data = ks_data.drop(['region1', 'region2', 'measure'], axis=1)
+
+        # to do: max half of the values
+
+        title = "Kolmogorov–Smirnov test between regions"
+
+        plt.title("{ref}: {title} ({breadth}/{depth}x)".
+                  format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
+
+        ax = sns.heatmap(ks_data, cmap="seismic", annot=True)
+
+        figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
+            self.plot_dir, self.dir_sep,
+            measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        # plt.show()
 
         plt.savefig(figure_name)
 
@@ -676,16 +716,21 @@ class MakeGenePlots:
 
         df_fam = df_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
 
+        # this intermezzo should be in separate method
+
         data_new = data.merge(df_fam,
                               left_on=data.gene_fam,
                               right_on=df_fam.gene_fam,
                               how="inner").drop(["key_0", "gene_fam_y"], axis=1)
         data_new.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
 
+        # to do: better names
         data_new = data_new.sort_values(by='log10_pN/pS_mean', ascending=False)
-        # to do: call figure here
+
         measure = "log10_pN/pS"
         self.make_box_swarm_plot(data_new, measure)
+
+        # end of intermezzo
 
         df_top_fam = df_fam.tail(5)
 
@@ -870,9 +915,9 @@ if __name__ == "__main__":
 # ref="crassphage_refseq"
 # # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
 #
 # # gene family analyis (with -f option)
-# do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.80"])
+# # do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.80"])
 
 
