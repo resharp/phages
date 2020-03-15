@@ -36,6 +36,9 @@ class MakeGenePlots:
     sample_df = None
     gene_anno_df = None
 
+    fam_df = None
+    gene_fam_sample_df = None
+
     bin_sample_df = None
     bin_df = None
 
@@ -104,7 +107,6 @@ class MakeGenePlots:
 
         gene_anno_file_name = self.ref_dir + self.dir_sep + "{ref}_gene_list.txt".format(ref=ref)
 
-        # to do also read gene_fam_x (to be produced by AnnotateCrassGenomes)
         anno_df = pd.read_csv(gene_anno_file_name
                               ,   sep='\t'
                               ,   header=None
@@ -292,7 +294,6 @@ class MakeGenePlots:
                                       , how='inner')
         merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
 
-        # to do: also add gene_fam as a key for combining Protein later on
         merge_df = merge_df[['Protein', 'gene_fam',
                              'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'Annotation']]
 
@@ -587,14 +588,14 @@ class MakeGenePlots:
 
         self.create_region_plot()
 
-    #region family analysis
+    # --------------------------------------------------------------------------------------------
+    # region family analysis
     def read_all_files_for_family(self):
 
         logging.info("start reading tables")
 
         self.gene_sample_df = self.read_and_concat_measures("_gene_measures.txt")
 
-        # to do: read all annotations of all refs
         self.gene_anno_df = self.read_all_annotations()
 
         self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt")
@@ -622,7 +623,7 @@ class MakeGenePlots:
 
         return pd.concat(anno_list)
 
-    def breadth_statistics(self):
+    def breadth_statistics_for_choosing_threshold(self):
 
         data = self.filtered_gene_sample_df
 
@@ -648,11 +649,11 @@ class MakeGenePlots:
 
         df = pd.DataFrame(columns=("percentage", "ref", "count", "fraction"), data=row_list)
 
-        self.make_cumulation_plot(df, refs, "fraction")
+        self.make_cumulation_plot_for_breadth_thresholds(df, refs, "fraction")
 
-        self.make_cumulation_plot(df, refs, "count")
+        self.make_cumulation_plot_for_breadth_thresholds(df, refs, "count")
 
-    def make_cumulation_plot(self, df, refs, measure):
+    def make_cumulation_plot_for_breadth_thresholds(self, df, refs, measure):
 
         colors = sns.color_palette("husl", n_colors=len(refs))
 
@@ -697,42 +698,65 @@ class MakeGenePlots:
         plt.savefig(figure_name)
         plt.clf()
 
-    def rank_gene_families(self):
+    def filter_gene_sample_on_gene_coverage_for_all_refs(self):
+
+        data = self.filtered_gene_sample_df
+
+        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+        data = data[data[breadth_field] > self.threshold_breadth]
+
+        # region enrichment (maybe move to other place)
+        data.loc[data.region == "assembly", "region"] = "assembly.rest"
+
+        data.loc[pd.isnull(data.region), "region"] = "other"
+
+        self.filtered_gene_sample_df = data
+
+    def aggregate_on_gene_fam(self):
 
         data = self.filtered_gene_sample_df
 
         data = data[data.gene_fam.isnull() == False]
 
-        # now first aggregate on gene_fam log10_pN/pS
-
-        # to do: write this to text file
-        df_fam = data.groupby("gene_fam").agg(
+        fam_df = data.groupby("gene_fam").agg(
             {
                 'log10_pN/pS': ["mean", "count"]
             }).reset_index()
 
-        df_fam.columns = ["_".join(x) for x in df_fam.columns.ravel()]
-        df_fam.rename(columns={'gene_fam_': 'gene_fam'}, inplace=True)
+        fam_df.columns = ["_".join(x) for x in fam_df.columns.ravel()]
+        fam_df.rename(columns={'gene_fam_': 'gene_fam'}, inplace=True)
 
-        df_fam = df_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
+        self.fam_df = fam_df.sort_values(by='log10_pN/pS_mean', ascending=False)
 
-        # this intermezzo should be in separate method
+        # gene fam contains both the gene and the family information (only for genes that are grouped in family)
+        # the family information is only for sorting
+        df_gene_fam = data.merge(fam_df,
+                                 left_on=data.gene_fam,
+                                 right_on=fam_df.gene_fam,
+                                 how="inner").drop(["key_0", "gene_fam_y"], axis=1)
+        df_gene_fam.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
 
-        data_new = data.merge(df_fam,
-                              left_on=data.gene_fam,
-                              right_on=df_fam.gene_fam,
-                              how="inner").drop(["key_0", "gene_fam_y"], axis=1)
-        data_new.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
+        df_gene_fam = df_gene_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
 
-        # to do: better names
-        data_new = data_new.sort_values(by='log10_pN/pS_mean', ascending=False)
+        self.gene_fam_sample_df = df_gene_fam
+
+    def write_gene_fam_sample(self):
+
+        file_name = "{}{}gene_fam_sample.{breadth}.{depth}x.txt".format(
+            self.plot_dir, self.dir_sep,
+            depth=self.threshold_depth, breadth=self.threshold_breadth,
+        )
+
+        self.gene_fam_sample_df.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
+    def plot_gene_families(self):
 
         measure = "log10_pN/pS"
-        self.make_box_swarm_plot(data_new, measure)
+        self.make_box_swarm_plot(self.gene_fam_sample_df, measure)
 
-        # end of intermezzo
-
-        df_top_fam = df_fam.tail(5)
+        data = self.filtered_gene_sample_df
+        # top 5 most conserved (to do: also top 5 less conserved)
+        df_top_fam = self.fam_df.tail(5)
 
         data = data.merge(df_top_fam,
                           left_on=data.gene_fam,
@@ -743,7 +767,6 @@ class MakeGenePlots:
         self.plot_family_and_ref(data=data, kind="swarm", ds_order=df_top_fam.gene_fam)
         self.plot_family_and_ref(data=data, kind="box", ds_order=df_top_fam.gene_fam)
 
-    # to do: better name
     def plot_family_and_ref(self, data, kind, ds_order):
 
         sns.catplot(x="gene_fam", y="log10_pN/pS", kind=kind, data=data, hue="ref",
@@ -763,44 +786,6 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
         plt.clf()
-
-    def quick_and_dirty_family_analysis(self):
-
-        # now read all the files and show how the gene families vary
-        # can I do this in one plot
-
-        # *_GenePlots/crassphage_pN_pS_values.0.2.10x.txt
-        # *_GenePlots/crassphage_pN_pS_values.0.8.10x.txt
-        # *_GenePlots/crassphage_pN_pS_values.0.95.10x.txt
-
-        subfolders = [f.path for f in os.scandir(self.sample_dir) if f.is_dir() and "_GenePlots" in f.name]
-        samples = []
-
-        for subfolder in subfolders:
-
-            suffix = "{tb}.{td}x".format(tb=self.threshold_breadth, td=self.threshold_depth)
-            file_name = subfolder + self.dir_sep + "crassphage_pN_pS_values.{suffix}.txt".format(suffix=suffix)
-
-            if os.path.isfile(file_name) and os.path.getsize(file_name) > 0:
-                logging.info("processing {}".format(file_name))
-
-                temp_df = pd.read_csv(file_name,
-                                      sep='\t',
-                                         )
-                samples.append(temp_df)
-
-        if len(samples) == 0:
-            return
-
-        self.all_scores_df = pd.concat(samples).reset_index()
-
-        family_df = self.all_scores_df[self.all_scores_df.gene_fam.isnull() == False]
-
-        family_df = family_df.sort_values(by='log10_pN/pS_mean', ascending=False)
-        # family_df["long_annot"] = family_df.gene_fam + family_df.Annotation
-
-        measure = "log10_pN/pS_mean"
-        self.make_box_swarm_plot(family_df, measure)
 
     def make_box_swarm_plot(self, family_df, measure):
 
@@ -836,22 +821,20 @@ class MakeGenePlots:
 
         self.read_all_files_for_family()
 
-        # to do: continue with all files for family
         self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
 
-        self.breadth_statistics()
+        self.breadth_statistics_for_choosing_threshold()
 
-        # to do: now we should probably filter the genes!
-        data = self.filtered_gene_sample_df
-        breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
-        data = data[data[breadth_field] > self.threshold_breadth]
-        self.filtered_gene_sample_df = data
+        self.filter_gene_sample_on_gene_coverage_for_all_refs()
 
-        self.rank_gene_families()
+        self.aggregate_on_gene_fam()
 
-        self.quick_and_dirty_family_analysis()
+        self.write_gene_fam_sample()
 
-    #endregion
+        self.plot_gene_families()
+
+    # endregion
+    # ---------------------------------------------------------------------------
 
 
 def do_analysis(args_in):
@@ -915,9 +898,8 @@ if __name__ == "__main__":
 # ref="crassphage_refseq"
 # # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+# # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
 #
 # # gene family analyis (with -f option)
-# # do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.80"])
-
-
+# # to do: write the results of all data points to a text file
+# do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.95"])
