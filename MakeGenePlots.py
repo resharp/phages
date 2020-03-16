@@ -9,16 +9,16 @@ from scipy.stats import ks_2samp
 import sys
 
 # MakeGenePlots
-# create multiple heatmaps
+# create multiple heat maps
 #   1st with the log pN/pS values
 #   2nd with the missing genes (just 0/1 for clarity)
 #   3rd distribution plots [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
 #   we aggregate them to gene level (aggregation over all samples)
-#   therefore we load all files and merge them into one dataframe
+#   therefore we load all files and merge them into one DataFrame
 #
-# masking missing values in heatmaps:
+# masking missing values in heat maps:
 # https://github.com/mwaskom/seaborn/issues/375
 
 
@@ -113,6 +113,8 @@ class MakeGenePlots:
                               ,   usecols=[0, 1, 2, 3]
                               ,   names=["Protein", "gene_fam", "region", "Annotation"]
                               )
+        anno_df["ref"] = ref
+
         return anno_df
 
     def prepare_data_for_plots(self):
@@ -203,17 +205,6 @@ class MakeGenePlots:
         filtered_sample = self.sample_breadth_df[self.sample_breadth_df.breadth_1x.ge(0.05)]
         filtered_sample = filtered_sample.drop(["breadth_1x", "breadth_10x", "breadth_50x", "breadth_100x"], axis=1)
 
-        data = data.merge(filtered_sample,
-                          left_on=data["sample"],
-                          right_on=filtered_sample["sample"],
-                          how="inner").drop(["key_0"], axis=1).drop(["sample_y"], axis=1)
-
-        data.rename(columns={'sample_x': 'sample'}, inplace=True)
-
-        if filter_genes:
-            breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
-            data = data[data[breadth_field] > self.threshold_breadth]
-
         # add annotation, e.g. region
         merge_df = data.merge(self.gene_anno_df
                               , left_on=data.Protein
@@ -221,10 +212,25 @@ class MakeGenePlots:
                               , how='left').drop(["Protein_x", "Protein_y"], axis=1)
         merge_df.rename(columns={'key_0': 'Protein', "ref_x": "ref"}, inplace=True)
 
-        # to do this assertion does not seem to hold: how come?
-        # assert(len(data) == len(merge_df))
+        assert(len(data) == len(merge_df))
 
-        self.filtered_gene_sample_df = merge_df
+        # to do this contains the BUG
+        # we should join on data["sample"] AND data["ref"]
+        # however self.gene_sample_df does not contain ref! and it should
+        # so we first have to join on annotation, and only then on the filtered samples
+        data = merge_df.merge(filtered_sample,
+                              left_on=[merge_df["sample"], merge_df.ref],
+                              right_on=[filtered_sample["sample"], filtered_sample.ref],
+                              how="inner").drop(["key_0"], axis=1).drop(["sample_y", "ref_y"], axis=1)
+
+        data.rename(columns={'sample_x': 'sample', 'ref_x': 'ref'}, inplace=True)
+
+        if filter_genes:
+            breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
+            data = data[data[breadth_field] > self.threshold_breadth]
+
+        # to do
+        self.filtered_gene_sample_df = data
 
         # this was the old way of filtering (when we always had enough depth in the pilot):
         # data = data[(data.AAcoverage_perc < 1.5)]
@@ -706,6 +712,7 @@ class MakeGenePlots:
         data = data[data[breadth_field] > self.threshold_breadth]
 
         # region enrichment (maybe move to other place)
+        # these two statements give warnings but correct results
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
         data.loc[pd.isnull(data.region), "region"] = "other"
@@ -769,6 +776,7 @@ class MakeGenePlots:
 
     def plot_family_and_ref(self, data, kind, ds_order):
 
+        # to do hue is not correct it should be ref_y, but where does the incorrect ref come from?
         sns.catplot(x="gene_fam", y="log10_pN/pS", kind=kind, data=data, hue="ref",
                     palette=sns.color_palette(n_colors=10),
                     order=ds_order, height=3.5, aspect=3)
