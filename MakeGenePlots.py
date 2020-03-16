@@ -212,7 +212,7 @@ class MakeGenePlots:
                               , how='left').drop(["Protein_x", "Protein_y"], axis=1)
         merge_df.rename(columns={'key_0': 'Protein', "ref_x": "ref"}, inplace=True)
 
-        assert(len(data) == len(merge_df))
+        # assert(len(data) == len(merge_df))
 
         # to do this contains the BUG
         # we should join on data["sample"] AND data["ref"]
