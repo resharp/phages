@@ -259,7 +259,8 @@ class MakeGenePlots:
         data.columns = ["_".join(x.split("_")[3:]) for x in data.columns]
 
         plt.clf()  # clear the current figure (always do this before any new plot)
-        ax = sns.heatmap(data, cmap="seismic", annot=False)
+
+        ax = sns.heatmap(data, cmap="seismic_r", annot=False)
 
         suffix_title = ""
         if add_suffix:
@@ -472,32 +473,36 @@ class MakeGenePlots:
         ks_data.set_index(['region1', 'region2'])
 
         regions1 = data.region.unique()
-        regions2 = data.region.unique()
+        regions2 = regions1.copy()
         for region1 in regions1:
             for region2 in regions2:
-                ds_1 = data[data.region == region1][measure]
-                ds_2 = data[data.region == region2][measure]
+                if region1 == region2:
+                    ks_data.loc[region1, region2] = 1
+                else:
+                    ds_1 = data[data.region == region1][measure]
+                    ds_2 = data[data.region == region2][measure]
 
-                ks_result = ks_2samp(data1=ds_1, data2=ds_2)
-                ks_data.loc[region1, region2] = ks_result.pvalue
+                    ks_result = ks_2samp(data1=ds_1, data2=ds_2)
+                    ks_data.loc[region1, region2] = ks_result.pvalue
 
         ks_data = ks_data.drop(['region1', 'region2', 'measure'], axis=1)
 
         # to do: max half of the values
+        mask = self.get_diagional_mask(ks_data)
 
         title = "Kolmogorov–Smirnov test between regions"
 
         plt.title("{ref}: {title} ({breadth}/{depth}x)".
                   format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
-        ax = sns.heatmap(ks_data, cmap="seismic", annot=True)
+        # to do: pimp this picture
+        ax = sns.heatmap(ks_data, cmap="seismic_r", annot=True, mask=mask)
 
         figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
             measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
-        # plt.show()
 
         plt.savefig(figure_name)
 
@@ -756,6 +761,63 @@ class MakeGenePlots:
 
         self.gene_fam_sample_df.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
+    def ks_significance_fam_values(self):
+
+        data = self.gene_fam_sample_df
+
+        ks_data = pd.DataFrame(columns=['fam1', 'fam2', 'measure'])
+        ks_data.set_index(['fam1', 'fam2'])
+
+        measure = "log10_pN/pS"
+
+        fams1 = data.gene_fam.unique()
+        fams2 = fams1.copy()
+
+        for fam1 in fams1:
+            for fam2 in fams2:
+                if fam1 == fam2:
+                    ks_data.loc[fam1, fam2] = 1
+                else:
+                    ds_1 = data[data.gene_fam == fam1][measure]
+                    ds_2 = data[data.gene_fam == fam2][measure]
+
+                    ks_result = ks_2samp(data1=ds_1, data2=ds_2)
+                    ks_data.loc[fam1, fam2] = ks_result.pvalue
+
+        ks_data = ks_data.drop(['fam1', 'fam2', 'measure'], axis=1)
+
+        mask = self.get_diagional_mask(ks_data)
+
+        sns.set(font_scale=0.8)
+
+        title = "Kolmogorov–Smirnov test between gene fams"
+
+        plt.figure(figsize=(14, 10))
+        plt.title("{title} ({breadth}/{depth}x)".
+                  format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
+
+        # to do: pimp this picture
+        ax = sns.heatmap(ks_data, cmap="seismic_r", annot=False, mask=mask)
+
+        figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
+            self.plot_dir, self.dir_sep,
+            measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+
+        plt.savefig(figure_name)
+
+    def get_diagional_mask(self, data):
+
+        mask = np.zeros(data.shape)
+        for i in range(0,len(data)):
+            for j in range(0, len(data)):
+                if i < j:
+                    mask[i, j] = 1
+        return mask
+
+
+
     def plot_gene_families(self):
 
         measure = "log10_pN/pS"
@@ -838,6 +900,8 @@ class MakeGenePlots:
         self.aggregate_on_gene_fam()
 
         self.write_gene_fam_sample()
+
+        self.ks_significance_fam_values()
 
         self.plot_gene_families()
 
