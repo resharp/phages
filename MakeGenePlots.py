@@ -488,7 +488,7 @@ class MakeGenePlots:
         ks_data = ks_data.drop(['region1', 'region2', 'measure'], axis=1)
 
         # to do: max half of the values
-        mask = self.get_diagional_mask(ks_data)
+        mask = self.get_diagonal_mask(ks_data)
 
         title = "Kolmogorov–Smirnov test between regions"
 
@@ -786,7 +786,7 @@ class MakeGenePlots:
 
         ks_data = ks_data.drop(['fam1', 'fam2', 'measure'], axis=1)
 
-        mask = self.get_diagional_mask(ks_data)
+        mask = self.get_diagonal_mask(ks_data)
 
         sns.set(font_scale=0.8)
 
@@ -807,16 +807,15 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
 
-    def get_diagional_mask(self, data):
+    @staticmethod
+    def get_diagonal_mask(data):
 
         mask = np.zeros(data.shape)
         for i in range(0,len(data)):
             for j in range(0, len(data)):
-                if i < j:
+                if i <= j:
                     mask[i, j] = 1
         return mask
-
-
 
     def plot_gene_families(self):
 
