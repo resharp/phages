@@ -134,6 +134,9 @@ class CalcDiversiMeasures:
 
         nr_codons_genome = len(self.aa_df)
 
+        # to do: add average depth for whole sample
+        mean_depth = self.aa_df.AAcoverage.mean()
+
         len_1x = len(self.aa_df[self.aa_df['AAcoverage'].ge(1)])
         len_10x = len(self.aa_df[self.aa_df['AAcoverage'].ge(10)])
         len_50x = len(self.aa_df[self.aa_df['AAcoverage'].ge(50)])
@@ -144,8 +147,8 @@ class CalcDiversiMeasures:
         breadth_50x = len_50x/nr_codons_genome
         breadth_100x = len_100x/nr_codons_genome
 
-        self.sample_df = pd.DataFrame(data=[[ sample, ref, breadth_1x, breadth_10x, breadth_50x, breadth_100x]],
-                                      columns=('sample', 'ref',
+        self.sample_df = pd.DataFrame(data=[[ sample, ref, mean_depth, breadth_1x, breadth_10x, breadth_50x, breadth_100x]],
+                                      columns=('sample', 'ref', 'mean_depth',
                                                'breadth_1x', 'breadth_10x', 'breadth_50x', 'breadth_100x'))
 
         self.sample_df = self.sample_df.round(decimals=4)
@@ -621,15 +624,15 @@ if __name__ == "__main__":
 #TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 # ref = "crassphage_refseq"
-#
-# refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1"]
-# ref = "sib1_ms_5"
-# ref = "err975045_s_1"
-# run all samples
+# #
+# refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5"]
+# # ref = "sib1_ms_5"
+# # ref = "err975045_s_1"
+# # run all samples
 # for ref in refs:
 #     run_calc(["-d", sample_dir, "-r", ref, "-a"])
-
-# or run one sample, or a list of
-# sample = "ERR525804"
-# sample = "ERR525717" # sample with 93 reads and ~8% 1x
-# run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
+# #
+# # or run one sample, or a list of
+# # sample = "ERR525804"
+# # sample = "ERR525717" # sample with 93 reads and ~8% 1x
+# # run_calc(["-d", sample_dir, "-s", sample, "-r", ref])
