@@ -786,6 +786,13 @@ class MakeGenePlots:
 
         ks_data = ks_data.drop(['fam1', 'fam2', 'measure'], axis=1)
 
+        ks_file_name = "{}{}gene_plots.compare_fams.{measure}.{breadth}.{depth}x.txt".format(
+            self.plot_dir, self.dir_sep,
+            measure=measure.replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        ks_data.to_csv(path_or_buf=ks_file_name, sep='\t')
+
         mask = self.get_diagonal_mask(ks_data)
 
         sns.set(font_scale=0.8)
@@ -799,7 +806,7 @@ class MakeGenePlots:
         # to do: pimp this picture
         ax = sns.heatmap(ks_data, cmap="seismic_r", annot=False, mask=mask)
 
-        figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
+        figure_name = "{}{}gene_plots.compare_fams.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
             measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
