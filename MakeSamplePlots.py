@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns;sns.set()
+from scipy.stats import entropy
 import sys
 
 # MakeSamplePlots
@@ -29,6 +30,8 @@ class MakeSamplePlots:
     sample_measures_df = None
     merge_df = None
     genus_sorted_df = None
+
+    filter = ""
 
     def __init__(self, sample_dir):
 
@@ -142,11 +145,13 @@ class MakeSamplePlots:
 
         self.merge_df = merge_df
 
-    def apply_threshold(self):
+    def filter_on_breadth_threshold(self):
 
         merge_df = self.merge_df
 
-        self.merge_df = merge_df[merge_df.breadth_1x > 0.05]
+        breadth_threshold = 0.05
+        self.merge_df = merge_df[merge_df.breadth_1x > breadth_threshold]
+        self.filter = "{perc}%/1x".format(perc=breadth_threshold*100)
 
     def make_bar_plot(self):
 
@@ -281,6 +286,57 @@ class MakeSamplePlots:
         plt.savefig(figure_name)
         plt.clf()
 
+    @staticmethod
+    def macro_entropy(mean_depth):
+
+        macro_entropy = entropy(mean_depth, base=10)
+
+        return macro_entropy
+
+    @staticmethod
+    def nr_genera(mean_depth):
+
+        return len(mean_depth)
+
+    def make_diversity_plots(self):
+
+        # to do: use genus and mean_depth to calculate entropy for each sample and categorize for age_cat
+        df_entropies = self.merge_df.groupby(["run", "age_cat", "age_cat_short" ]).agg(
+            {
+                'mean_depth': [self.nr_genera, self.macro_entropy]
+            }
+        ).reset_index()
+
+        df_entropies.columns = ["_".join(x) for x in df_entropies.columns.ravel()]
+        df_entropies.rename(columns={'run_': 'run',
+                                     'age_cat_': 'age_cat',
+                                     "age_cat_short_": "age_cat_short",
+                                     "mean_depth_nr_genera": "nr_genera"
+                                     }, inplace=True)
+
+        self.make_cat_plot_for_age_categories(df_entropies, "mean_depth_macro_entropy",
+                                              "macro diversity (Shannon entropy)")
+        self.make_cat_plot_for_age_categories(df_entropies, "nr_genera",
+                                              "macro diversity (nr of genera)")
+
+    def make_cat_plot_for_age_categories(self, data, measure, title):
+
+        kind = "swarm"
+        sns.catplot(x="age_cat_short", y=measure, kind=kind, data=data,
+                    palette=sns.color_palette("coolwarm", 4)
+                    , order=["B", "4M", "12M", "M"]
+                    )
+
+        plt.title("{title} ({filter})".format(
+            title=title, filter=self.filter
+        ))
+
+        figure_name = "{dir}{sep}catplot.age_cat.{measure}.{filter}.svg".format(
+            dir=self.plot_dir, sep=self.dir_sep, measure=measure, filter=self.filter.replace("/", "_"),
+        )
+        plt.savefig(figure_name)
+        plt.clf()
+
     def make_scatter_plots(self):
         # total number of mappings between age 4 and 12 months and mother?
         # might also make a mixed scatterplot matrix
@@ -344,13 +400,15 @@ class MakeSamplePlots:
 
         self.make_filter_sample_plots()
 
-        self.apply_threshold()
+        self.filter_on_breadth_threshold()
 
         self.make_bar_plot()
 
         self.prepare_specifics_for_project()
 
         self.make_abundance_plots()
+
+        self.make_diversity_plots()
 
         verbose = False
 
