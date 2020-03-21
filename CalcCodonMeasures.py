@@ -90,7 +90,7 @@ class CalcCodonMeasures:
         # to do: read sample metadata (for age categories)
 
         # to do: read AA measures
-        self.aa_df = self.read_and_concat_measures("_AA_clean.txt", ref, [2,3,19,20,21,22,23,24,25])
+        self.aa_df = self.read_and_concat_measures("_AA_clean.txt", self.ref, [2,3,19,20,21,22,23,24,25])
 
         logging.debug("end reading tables")
 
@@ -162,7 +162,7 @@ def run_calc(args_in):
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
     parser.add_argument("-r", "--ref", dest="ref",
-                        help="reference genome id", metavar="[ref}", required=True)
+                        help="reference genome id", metavar="[ref]", required=True)
 
     args = parser.parse_args(args_in)
 
