@@ -1,12 +1,9 @@
 import argparse
 import logging
 import os
-import sys
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns;sns.set()
 from scipy.stats import entropy
+import sys
 
 # We will calculate per protein position (by pile up/stacking of all reads of all samples on top of each other):
 # the overall coverage,
@@ -31,8 +28,6 @@ class CalcCodonMeasures:
     sample_meta_df = None
     sample_measures_df = None
 
-    pileup_df = None
-
     out_dir = None
 
     def __init__(self, sample_dir, ref):
@@ -52,7 +47,7 @@ class CalcCodonMeasures:
     def read_and_concat_measures(self, file_name_ext, ref=None, usecols = []):
 
         subfolders = [f.path for f in os.scandir(self.sample_dir)
-                      if f.is_dir() and ref in f.name]
+                      if f.is_dir() and ref in f.name and "GenePlots" not in f.name]
 
         samples = []
 
@@ -61,8 +56,15 @@ class CalcCodonMeasures:
             sample = sample.split("_")[0]
             sample_name = subfolder + self.dir_sep + sample + file_name_ext
 
-            # to do: check if the sample is above breadth threshold
-            # based on sample measures
+            # check if the sample is above breadth threshold based on sample measures
+            filter_data = self.sample_measures_df[
+                (self.sample_measures_df["sample"] == sample) & (self.sample_measures_df.ref == ref)].reset_index()
+            if len(filter_data) == 0:
+                logging.warning("No sample measures for {sample} and {ref}.".format(sample=sample, ref=ref))
+                continue
+            if filter_data.at[0, "breadth_1x"] < 0.05:
+                logging.info("skipped sample {sample} for {ref}.".format(sample=sample, ref=ref))
+                continue
 
             if os.path.isfile(sample_name) and os.path.getsize(sample_name) > 0:
                 logging.info("processing {}".format(sample_name))
@@ -82,29 +84,79 @@ class CalcCodonMeasures:
 
         return pd.concat(samples)
 
+    @staticmethod
+    def age_category(row):
+        return row.sample_name.split("_")[1]
+
+    def read_sample_metadata(self):
+
+        metadata_filename = self.sample_dir + self.dir_sep + "metadata_ERP005989.txt"
+
+        self.sample_meta_df = pd.read_csv(metadata_filename
+                                          , sep='\t'
+                                          )
+
+        self.sample_meta_df = self.sample_meta_df[['analysis.run.accession', 'sample.sample_name']]
+
+        self.sample_meta_df.rename(columns={'analysis.run.accession': 'run',
+                                            'sample.sample_name': 'sample_name'}, inplace=True)
+
+        self.sample_meta_df["age_cat_short"] = self.sample_meta_df.apply(self.age_category, axis=1)
+
+    def read_sample_measures(self):
+
+        # sample measures contains the breadth_1x, ..10x, ..50x and ..100x fractions
+        measure_file_name = self.sample_dir + self.dir_sep + "sample_measures.txt"
+        self.sample_measures_df = pd.read_csv(measure_file_name,
+                                              sep="\t")
+
     def read_files(self):
 
         logging.debug("start reading tables")
-        # to do: read sample measures (for filter criteria, e.g. 5%/10x)
 
-        # to do: read sample metadata (for age categories)
+        self.read_sample_measures()
 
-        # to do: read AA measures
+        self.read_sample_metadata()
+
         self.aa_df = self.read_and_concat_measures("_AA_clean.txt", self.ref, [2,3,19,20,21,22,23,24,25])
 
         logging.debug("end reading tables")
 
-    def calc_measures(self):
+    def merge_files(self):
+        # add age_cat_short to self.aa_df
+        self.aa_df = self.aa_df.merge(self.sample_meta_df[["run", "age_cat_short"]],
+                                      left_on=self.aa_df["sample"],
+                                      right_on=self.sample_meta_df["run"],
+                                      how="inner")\
+            .drop(["key_0", "run"], axis=1)
+        self.aa_df.rename(columns={'age_cat_short': 'age_cat'}, inplace=True)
+
+    def calc_and_write_measures(self):
+
+        # to do: add SNP density measures
 
         self.aa_df = self.aa_df[self.aa_df.TopCodon.notnull()]
 
-        group = self.aa_df.groupby(["Protein", "AAPosition"])
+        self.calc_and_write_measures_for_subset(self.aa_df, "all")
 
-        logging.debug("start pileup and calculation entropy")
-        self.pileup_df = group.apply(self.count_codons)
-        logging.debug("end pileup and calculation entropy")
+        age_cats = self.aa_df.age_cat.unique()
+        for age_cat in age_cats:
+            aa_df_age = self.aa_df[self.aa_df.age_cat == age_cat]
 
-        debug = "Are we happy?"
+            self.calc_and_write_measures_for_subset(aa_df_age, age_cat)
+
+    def calc_and_write_measures_for_subset(self, aa_df, age_cat=""):
+
+        group = aa_df.groupby(["Protein", "AAPosition"])
+
+        logging.debug("start pileup and calculation of entropy for age category {age_cat}".format(age_cat=age_cat))
+        pileup_df = group.apply(self.count_codons)
+        logging.debug("end pileup and calculation of entropy")
+
+        filename = self.out_dir + self.dir_sep + "codon_entropy_{ref}_{age_cat}.txt"\
+            .format(ref=self.ref, age_cat=age_cat)
+
+        pileup_df.round(decimals=4).to_csv(path_or_buf=filename, sep='\t', index=False)
 
     def count_codons(self, group):
 
@@ -137,21 +189,15 @@ class CalcCodonMeasures:
 
         os.makedirs(self.out_dir, exist_ok=True)
 
-    def write_measures(self):
-
-        filename = self.out_dir + self.dir_sep + "codon_entropy.txt"
-
-        self.pileup_df.to_csv(path_or_buf=filename, sep='\t', index=False)
-
     def run_calc(self):
 
         self.read_files()
 
-        self.calc_measures()
+        self.merge_files()
 
         self.create_output_dir()
 
-        self.write_measures()
+        self.calc_and_write_measures()
 
 
 def run_calc(args_in):
