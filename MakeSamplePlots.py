@@ -303,7 +303,7 @@ class MakeSamplePlots:
         # to do: use genus and mean_depth to calculate entropy for each sample and categorize for age_cat
         df_entropies = self.merge_df.groupby(["run", "age_cat", "age_cat_short" ]).agg(
             {
-                'mean_depth': [self.nr_genera, self.macro_entropy]
+                'mean_depth': ["mean", self.nr_genera, self.macro_entropy]
             }
         ).reset_index()
 
@@ -318,6 +318,14 @@ class MakeSamplePlots:
                                               "macro diversity (Shannon entropy)")
         self.make_cat_plot_for_age_categories(df_entropies, "nr_genera",
                                               "macro diversity (nr of genera)")
+
+        measure="nr_genera"
+        title="macro diversity: nr of genera"
+        self.regression_plot(df_entropies, measure, title)
+
+        measure="mean_depth_macro_entropy"
+        title="macro diversity: entropy based on genus abundances"
+        self.regression_plot(df_entropies, measure, title)
 
     def make_cat_plot_for_age_categories(self, data, measure, title):
 
@@ -334,6 +342,32 @@ class MakeSamplePlots:
         figure_name = "{dir}{sep}catplot.age_cat.{measure}.{filter}.svg".format(
             dir=self.plot_dir, sep=self.dir_sep, measure=measure, filter=self.filter.replace("/", "_"),
         )
+        plt.savefig(figure_name)
+        plt.clf()
+
+    def regression_plot(self, data, measure, title):
+
+        data = data[data.age_cat_short != "B"]
+
+        g0 = sns.lmplot(x="mean_depth_mean", y=measure,
+                        hue="age_cat_short",
+                        data=data,
+                        height=5,
+                        aspect=1.5)
+
+        if measure == "nr_genera":
+            plt.ylim(0, 7)
+        if measure == "mean_depth_macro_entropy":
+            plt.ylim(-0.2, 0.8)
+            plt.ylabel("macro entropy")
+
+        title = "{title} ({filter})".format(title=title, filter=self.filter)
+        plt.xlabel("mean sample depth")
+        plt.title(title)
+
+        figure_name = "{}{}macro_{measure}_against_depth_{filter}.svg".\
+            format(self.plot_dir, self.dir_sep, measure=measure, filter=self.filter.replace("/", "_"))
+
         plt.savefig(figure_name)
         plt.clf()
 
