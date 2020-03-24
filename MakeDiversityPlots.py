@@ -80,33 +80,45 @@ class MakeDiversityPlots:
 
     def make_plots(self):
 
-        title = "crAssphage: mean entropy of all position against mean coverage for that position."
-        self.plot_entropy_for_age_categories(self.aa_df, "codon", title)
-        title = "crAssphage: mean entropy of all genes against mean coverage for that gene."
+        # you may want to look at the plot with data points for all AA positions but it is very messy
+        # title = "{ref}: mean entropy of all position against mean coverage for that position.".format(ref=self.ref)
+        # self.plot_entropy_for_age_categories(self.aa_df, "codon", title)
+
+        title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
         self.plot_entropy_for_age_categories(self.protein_df, "protein", title)
 
     def plot_entropy_for_age_categories(self, data, level, title):
 
         data = data[data.age_cat != "all"]
+        data = data[data.age_cat != "B"]
 
-        plt.figure(figsize=(14, 10))
+        # you can filter out data points below a certain coverage:
+        # data = data[data.coverage > 250]
+
         g0 = sns.lmplot(x="coverage", y="entropy",
                         hue="age_cat",
-                        data=data)
+                        data=data,
+                        height=5, aspect=1.5)
+        plt.ylim(-0.02, 0.20)
+        # you may want to look at the residual plots before deciding on any possible trend
+        # sns.residplot(x="coverage", y="entropy", data=data[data.age_cat == "M"])
+
         plt.title(title)
 
         filename="{}{}entropy_against_coverage_for_{level}_{ref}.svg".format(
             self.plot_dir, self.dir_sep, level=level, ref=self.ref)
 
+        # plt.show()
         plt.savefig(filename)
         plt.clf()
 
     def write_measures(self):
         # https://stackoverflow.com/questions/33490833/display-regression-equation-in-seaborn-regplot
 
-        # to do: write measures for the slope of the lines for different age categories
+        # write measures for the slope of the lines for different age categories
         # and determine if they are significantly different
         self.write_measures_for_level(self.protein_df, "protein")
+
         self.write_measures_for_level(self.aa_df, "codon")
 
     def write_measures_for_level(self, data, level):
@@ -173,10 +185,14 @@ def do_analysis(args_in):
 # TODO for testing, do not use in production
 sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 
-# or run one sample, or a list of
-ref = "crassphage_refseq"
-do_analysis(["-d", sample_dir, "-r", ref])
+# # or run one sample, or a list of
+# # ref = "crassphage_refseq"
+# ref = "hvcf_a6_ms_4"
+# # ref = "sib1_ms_5"
+#
+# do_analysis(["-d", sample_dir, "-r", ref])
 
-# refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5"]
-# for ref in refs:
-#     do_analysis(["-d", sample_dir, "-r", ref])
+refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
+        "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
+for ref in refs:
+    do_analysis(["-d", sample_dir, "-r", ref])
