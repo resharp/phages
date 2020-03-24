@@ -143,6 +143,7 @@ class CalcCodonMeasures:
         for age_cat in age_cats:
             aa_df_age = self.aa_df[self.aa_df.age_cat == age_cat]
 
+            # to do: write to one file instead of different files per reference genome
             self.calc_and_write_measures_for_subset(aa_df_age, age_cat)
 
     def calc_and_write_measures_for_subset(self, aa_df, age_cat=""):
@@ -151,6 +152,12 @@ class CalcCodonMeasures:
 
         logging.debug("start pileup and calculation of entropy for age category {age_cat}".format(age_cat=age_cat))
         pileup_df = group.apply(self.count_codons)
+
+        pileup_df["snp"] = 0
+        pileup_df.loc[pileup_df.nr_snps > 0, "snp"] = 1
+
+        pileup_df["age_cat"] = age_cat
+
         logging.debug("end pileup and calculation of entropy")
 
         filename = self.out_dir + self.dir_sep + "codon_entropy_{ref}_{age_cat}.txt"\
@@ -172,13 +179,22 @@ class CalcCodonMeasures:
 
         codon_sums = codons.groupby("codon").sum()
 
+        aa_coverage_sum = group.AAcoverage.sum()
+
+        # how many codons next to the most abundant have an abundance of at least 3 an more than 1% in population?
+        possible_snps_including_major = codon_sums[(codon_sums["count"] > 2) &
+                                                   (codon_sums["count"]/aa_coverage_sum > 0.01)]
+
+        nr_snps = possible_snps_including_major.count()[0] - 1
+
         codon_entropy = entropy(codon_sums, base=10)
 
         df_return = pd.DataFrame({
             "protein": group["Protein"].head(1),
             "position": group["AAPosition"].head(1),
             "entropy": codon_entropy,
-            "coverage": group.AAcoverage.sum()}
+            "coverage": aa_coverage_sum,
+            "nr_snps": nr_snps }
         )
 
         return df_return
@@ -220,13 +236,14 @@ def run_calc(args_in):
 
     calc.run_calc()
 
+
 if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
 
 # TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
-#
-# # or run one sample, or a list of
+# #
+# # or run one sample
 # ref = "crassphage_refseq"
 # run_calc(["-d", sample_dir, "-r", ref])
