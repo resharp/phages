@@ -76,7 +76,11 @@ class MakeDiversityPlots:
 
         self.protein_df = self.aa_df.groupby(["age_cat", "protein"]).agg(
             {'coverage': 'mean',
-             'entropy': 'mean'}).reset_index()
+             'entropy': 'mean',
+             'snp': 'sum',
+             'position': 'count'}).reset_index()
+
+        self.protein_df["snp_density"] = self.protein_df.snp / self.protein_df.position
 
     def make_plots(self):
 
@@ -84,10 +88,13 @@ class MakeDiversityPlots:
         # title = "{ref}: mean entropy of all position against mean coverage for that position.".format(ref=self.ref)
         # self.plot_entropy_for_age_categories(self.aa_df, "codon", title)
 
-        title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
-        self.plot_entropy_for_age_categories(self.protein_df, "protein", title)
+        title = "{ref}: mean SNP density of all genes against mean coverage for that gene.".format(ref=self.ref)
+        self.plot_measure_for_age_categories(self.protein_df, "snp_density", "protein", title)
 
-    def plot_entropy_for_age_categories(self, data, level, title):
+        title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
+        self.plot_measure_for_age_categories(self.protein_df, "entropy", "protein", title)
+
+    def plot_measure_for_age_categories(self, data, measure, level, title):
 
         data = data[data.age_cat != "all"]
         data = data[data.age_cat != "B"]
@@ -95,18 +102,21 @@ class MakeDiversityPlots:
         # you can filter out data points below a certain coverage:
         # data = data[data.coverage > 250]
 
-        g0 = sns.lmplot(x="coverage", y="entropy",
+        g0 = sns.lmplot(x="coverage", y=measure,
                         hue="age_cat",
                         data=data,
                         height=5, aspect=1.5)
-        plt.ylim(-0.02, 0.20)
+        if measure == "entropy":
+            plt.ylim(-0.01, 0.15)
+        if measure == "snp_density":
+            plt.ylim(-0.02, 0.80)
         # you may want to look at the residual plots before deciding on any possible trend
         # sns.residplot(x="coverage", y="entropy", data=data[data.age_cat == "M"])
 
         plt.title(title)
 
-        filename="{}{}entropy_against_coverage_for_{level}_{ref}.svg".format(
-            self.plot_dir, self.dir_sep, level=level, ref=self.ref)
+        filename="{}{}{measure}_against_coverage_for_{level}_{ref}.svg".format(
+            self.plot_dir, self.dir_sep, measure=measure, level=level, ref=self.ref)
 
         # plt.show()
         plt.savefig(filename)
