@@ -798,6 +798,8 @@ class MakeGenePlots:
         # trick to only show the significant values
         ks_data_significant = ks_data[ks_data < 0.05]
 
+        ks_data_significant = -np.log10(ks_data_significant)
+
         sns.set(font_scale=0.8)
 
         title = "Kolmogorov–Smirnov test between gene fams"
@@ -807,7 +809,7 @@ class MakeGenePlots:
                   format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         # to do: pimp this picture
-        ax = sns.heatmap(ks_data_significant, cmap="seismic_r", annot=False, mask=mask)
+        ax = sns.heatmap(ks_data_significant, cmap="seismic", annot=False, mask=mask)
 
         figure_name = "{}{}gene_plots.compare_fams.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
