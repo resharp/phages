@@ -39,26 +39,38 @@ class MakeDiversityPlots:
 
     def read_and_concat_measures(self, file_name_prefix, ref=None):
 
-        files = [f.path for f in os.scandir(self.plot_dir)
-                 if ref in f.name
-                 and file_name_prefix in f.name]
+        if ref == "all":
+            files = [f.path for f in os.scandir(self.plot_dir)
+                     if file_name_prefix in f.name
+                     and "xls" not in f.name]
+        else:
+            files = [f.path for f in os.scandir(self.plot_dir)
+                     if ref in f.name
+                     and file_name_prefix in f.name]
+
         age_sets = []
-        age_cats = []
 
         for file in files:
             base_name = os.path.basename(file)
             age_cat = base_name.split("_")[-1].replace(".txt", "")
-            age_cats.append(age_cat)
+            ref = base_name.replace(file_name_prefix + "_", "").replace("_" + age_cat, "").replace(".txt", "")
 
             logging.info("processing {}".format(file))
 
-            measure_df = pd.read_csv(file
-                                     ,  sep='\t'
-                                     )
+            try:
+                measure_df = pd.read_csv(file
+                                         , sep='\t'
+                                         )
+            except:
+                logging.error("Could not read file {file}".format(file=file))
+                raise
+
             measure_df["age_cat"] = age_cat
+            measure_df["ref"] = ref
+
             age_sets.append(measure_df)
 
-        return pd.concat(age_sets, keys=age_cats)
+        return pd.concat(age_sets)
 
     def read_files(self):
 
@@ -74,7 +86,7 @@ class MakeDiversityPlots:
 
     def aggregate_on_protein_level(self):
 
-        self.protein_df = self.aa_df.groupby(["age_cat", "protein"]).agg(
+        self.protein_df = self.aa_df.groupby(["age_cat", "protein", "ref"]).agg(
             {'coverage': 'mean',
              'entropy': 'mean',
              'snp': 'sum',
@@ -98,6 +110,8 @@ class MakeDiversityPlots:
 
         data = data[data.age_cat != "all"]
         data = data[data.age_cat != "B"]
+        # data = data[data.coverage < 100]
+        # data = data[data.ref != "crassphage_refseq"]
 
         # you can filter out data points below a certain coverage:
         # data = data[data.coverage > 250]
@@ -106,6 +120,9 @@ class MakeDiversityPlots:
                         hue="age_cat",
                         data=data,
                         height=5, aspect=1.5)
+        if self.ref == "crassphage_refseq" or self.ref == "all":
+            # we want these pictures to be in the same format for comparing
+            plt.xlim(-1000, 13000)
         if measure == "entropy":
             plt.ylim(-0.01, 0.15)
         if measure == "snp_density":
@@ -152,7 +169,7 @@ class MakeDiversityPlots:
             ]
 
         filename = "{}{}linear_regression_for_{level}_{ref}.txt".format(
-            self.plot_dir, self.dir_sep, level=level, ref=ref)
+            self.plot_dir, self.dir_sep, level=level, ref=self.ref)
         df_lr.to_csv(path_or_buf=filename, sep='\t')
 
     def do_analysis(self):
@@ -176,17 +193,26 @@ def do_analysis(args_in):
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
     parser.add_argument("-r", "--ref", dest="ref",
-                        help="reference genome id", metavar="[ref}", required=True)
+                        help="reference genome id", metavar="[ref}", required=False)
+
+    parser.add_argument("-a", "--all", action="store_true", default=False,
+                        help="run analysis on all ref genomes at once", required=False)
 
     args = parser.parse_args(args_in)
 
     print("Start running MakeDiversityPlots")
     print("sample_dir: " + args.sample_dir)
-    print("reference genome: " + args.ref)
+    if args.ref:
+        print("reference genome: " + args.ref)
+    if args.all:
+        print("run analysis on all reference genomes")
+        args.ref = "all"
 
     make = MakeDiversityPlots(args.sample_dir, args.ref)
 
     make.do_analysis()
+
+
 
 # if __name__ == "__main__":
 #     run_calc(sys.argv[1:])
@@ -202,7 +228,9 @@ sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
 #
 # do_analysis(["-d", sample_dir, "-r", ref])
 
-refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
-        "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
-for ref in refs:
-    do_analysis(["-d", sample_dir, "-r", ref])
+# refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
+#         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
+# for ref in refs:
+#     do_analysis(["-d", sample_dir, "-r", ref])
+
+do_analysis(["-d", sample_dir, "-a"])
