@@ -229,6 +229,7 @@ class MakeGenePlots:
             breadth_field = "breadth_{depth}x".format(depth=self.threshold_depth)
             data = data[data[breadth_field] > self.threshold_breadth]
 
+        data["label"] = data.apply(self.label, axis=1)
         # to do
         self.filtered_gene_sample_df = data
 
@@ -298,8 +299,12 @@ class MakeGenePlots:
         merge_df = self.gene_df.merge(self.gene_anno_df
                                       , left_on=self.gene_df.Protein
                                       , right_on=self.gene_anno_df.Protein
-                                      , how='inner')
+                                      , how='inner').drop(["Protein_x", "Protein_y"], axis=1)
         merge_df.rename(columns={'key_0': 'Protein'}, inplace=True)
+
+        merge_df["label"] = merge_df.apply(self.label, axis=1)
+
+        self.gene_df = merge_df
 
         merge_df = merge_df[['Protein', 'gene_fam',
                              'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'Annotation']]
@@ -308,6 +313,23 @@ class MakeGenePlots:
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
         merge_df.to_csv(filename, index=False, sep='\t')
+
+    def label(self, row):
+
+        label = ""
+        if row.Protein:
+            label = label + row.Protein
+        # if row.gene_fam:
+        #     if str(row.gene_fam) != "nan":
+        #         label = label + " " + str(row.gene_fam)
+        if row.Annotation:
+            if row.Annotation != "unknown function":
+                label = label + " " + row.Annotation
+
+        label = label.replace("hypothetical ", "")
+        label = label.replace("putative ","")
+        label = label.replace("protein", "pr.")
+        return label
 
     def score_samples(self):
 
@@ -331,33 +353,33 @@ class MakeGenePlots:
         filter_data = self.gene_df[self.gene_df['log10_pN/pS_count'] >= min_nr_samples]
 
         # head only works because self.gene_df is already ordered by log10_pN/pS_mean in score_genes_..()
-        top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(top10_data, "Protein", "log10_pN/pS",
+        top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean', 'label']]
+        self.create_box_plot(top10_data, "label", "log10_pN/pS",
                              "top 10 pos selection present in at least {} samples".format(min_nr_samples))
 
-        bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean']]
-        self.create_box_plot(bottom10_data, "Protein", "log10_pN/pS",
+        bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean', 'label']]
+        self.create_box_plot(bottom10_data, "label", "log10_pN/pS",
                              "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data, "Protein", "log10_pN/pS",
+        self.create_box_plot(combined_data, "label", "log10_pN/pS",
                              "top and bottom 10 present in at least {} samples".format(min_nr_samples))
 
-        self.create_box_plot(self.gene_df, "Protein", "log10_pN/pS", "all genes")
+        self.create_box_plot(self.gene_df, "label", "log10_pN/pS", "all genes")
 
         # box plots for ENTROPY
         filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
 
-        top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean']]
-        self.create_box_plot(top10_data, "Protein", "entropy_mean",
+        top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean', 'label']]
+        self.create_box_plot(top10_data, "label", "entropy_mean",
                              "top 10 internal var present in at least {} samples".format(min_nr_samples))
 
-        bottom10_data = filter_data.tail(10)[['Protein', 'entropy_mean_mean']]
-        self.create_box_plot(bottom10_data, "Protein", "entropy_mean",
+        bottom10_data = filter_data.tail(10)[['Protein', 'entropy_mean_mean', 'label']]
+        self.create_box_plot(bottom10_data, "label", "entropy_mean",
                              "bottom 10 internal var present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
-        self.create_box_plot(combined_data, "Protein", "entropy_mean",
+        self.create_box_plot(combined_data, "label", "entropy_mean",
                              "top and bottom 10 internal var in at least {} samples".format(min_nr_samples))
 
         # new aggregation per sample (min_nr_samples should now be read as min_nr_genes)
@@ -412,20 +434,25 @@ class MakeGenePlots:
             rename(columns={"{}_x".format(measure): measure })
 
         plt.clf()
+        plt.figure(figsize=(15, 5))
         plt.title("{ref}: {title} ({breadth}/{depth}x)".
                   format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
-
         sns.set(style="ticks")
 
         # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
-        sns.boxplot(x=measure, y=agg_field, data=data,
+        b = sns.boxplot(x=measure, y=agg_field, data=data,
                     whis="range", palette="vlag")
+
+        if agg_field == "label":
+            b.set_ylabel("protein")
+
+        sns.set(font_scale=0.8)
 
         sns.swarmplot(x=measure, y=agg_field, data=data,
                       size=2, color=".3", linewidth=0)
 
-        figure_name = "{}{}gene_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.pdf".format(
+        figure_name = "{}{}gene_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep, agg_field,
             measure=measure.replace("/", "_"), title=title.replace(" ", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
@@ -577,7 +604,9 @@ class MakeGenePlots:
 
         self.create_plot_dir(ref)
 
-        self.create_bin_line_plots_for_pn_ps()
+        verbose = False
+        if verbose:
+            self.create_bin_line_plots_for_pn_ps()
 
         self.prepare_data_for_plots()
 
@@ -982,8 +1011,8 @@ if __name__ == "__main__":
 # ref="crassphage_refseq"
 # # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
 #
 # # gene family analyis (with -f option)
 # # to do: write the results of all data points to a text file
-# do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.95"])
+# # do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.95"])
