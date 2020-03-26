@@ -155,20 +155,21 @@ class AnnotateCrassGenomes:
         for genome in genomes:
 
             gene_list_name = self.genome_dir + self.dir_sep + "{genome}_gene_list.txt".format(genome=genome)
-            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "region", "gene_annot"]]
+            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "region", "annotation"]]
 
             # if genome == 'crassphage_refseq', take region from original file (and not by joining on gene_fam)
             # it is already in self.crass_genes_df!
             if genome == "crassphage_refseq":
                 genes_df = genes_df.drop("region", axis=1)
+                genes_df = genes_df.drop("annotation", axis=1)
 
-                regions_df = self.crass_genes_df[['protein', 'region']]
+                regions_df = self.crass_genes_df[['protein', 'region', 'annotation']]
                 genes_df = genes_df.merge(regions_df,
                                           left_on=genes_df.gene,
                                           right_on=regions_df.protein,
-                                          how="inner")[['gene', 'gene_fam', 'region', 'gene_annot']]
+                                          how="inner")[['gene', 'gene_fam', 'region', 'annotation']]
 
-            genes_df.loc[genes_df.gene_annot.isnull(), "gene_annot"] = "unknown function"
+            genes_df.loc[genes_df.annotation.isnull(), "annotation"] = "unknown function"
 
             genes_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
 
