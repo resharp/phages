@@ -26,6 +26,9 @@ class AnnotateCrassGenomes:
     yutin_genes_name = "yutin_conserved_genes.txt"
     crass_genes_name = "crassphage_gene_list_add_yutin.txt"
 
+    pvog_annotation_name = "pvogs_annotations.tsv"
+    pvog_hmm_results_name = "all_refs_pvog_table.txt"
+
     dir_sep = ""
 
     ref_genes_df = None
@@ -33,6 +36,9 @@ class AnnotateCrassGenomes:
     yutin_genes_df = None
     crass_genes_df = None
     merge_df = None
+
+    pvog_annot_df = None
+    pvog_hmm_df = None
 
     def __init__(self, genome_dir, annotation_dir):
 
@@ -105,6 +111,45 @@ class AnnotateCrassGenomes:
         # we had to change yutin_gene_nr to dtype object in order to join it with yutin_genes_df.yutin_gene_nr (e.g.46N)
         print("number of proteins in annotated crAssphage: {nr_proteins}".format(nr_proteins=len(self.crass_genes_df)))
 
+        self.read_pvog_files()
+
+    def read_pvog_files(self):
+
+        self.pvog_annotation_name = self.genome_dir + self.dir_sep + self.pvog_annotation_name
+
+        # read the (processed) annotation from Nikos
+        self.pvog_annot_df= pd.read_csv(self.pvog_annotation_name
+                                        , sep="\t"
+                                        )
+
+        self.pvog_hmm_results_name = self.genome_dir + self.dir_sep + self.pvog_hmm_results_name
+
+        # read the pvog hmm results
+        self.pvog_hmm_df = pd.read_csv(self.pvog_hmm_results_name
+                                       , delim_whitespace=True
+                                       , comment="#"
+                                       , usecols=[0, 2, 4, 5]
+                                       , header=None
+                                       , names=["gene", "pvog", "e_value", "score"]
+                                       )
+
+        # to do: what cut-off should we use here?
+        # what happens if we take a more relaxed cut-off?
+        self.pvog_hmm_df = self.pvog_hmm_df[self.pvog_hmm_df.e_value < 1e-10]
+
+        merge_df = self.pvog_hmm_df.merge(self.pvog_annot_df,
+                                          left_on=self.pvog_hmm_df.pvog,
+                                          right_on=self.pvog_annot_df.pvog,
+                                          how="inner").drop(["key_0", "pvog_y"], axis=1)
+
+        # sometimes we have two hits in pvog_hmm_df, we should take the best one
+        # e.g. hvcf_a6_ms_4_36:
+        # only take the best pvog hmm hit by sorting and then dropping gene duplicates
+        merge_df = merge_df.sort_values(["gene", "score"], ascending=False)
+        self.pvog_hmm_df = merge_df.drop_duplicates('gene')
+
+        # debug = self.pvog_hmm_df[self.pvog_hmm_df.gene.str.match("hvcf_a6_ms_4")]
+
     def join_files(self):
 
         print("---------------")
@@ -148,9 +193,10 @@ class AnnotateCrassGenomes:
         self.merge_df.to_csv(path_or_buf=out_table_name, sep='\t', index=False)
 
         # now also write one file for every ref genome with only the annotations
-        # with no annotation, make it "hypothetical protein"
-
+        # with no annotation, make it "unknown function"
         genomes = self.merge_df.genome.unique()
+
+        list_dfs = []
 
         for genome in genomes:
 
@@ -171,7 +217,21 @@ class AnnotateCrassGenomes:
 
             genes_df.loc[genes_df.annotation.isnull(), "annotation"] = "unknown function"
 
-            genes_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
+            # add annotation from pvogs, we can add columns because MakeGenePlots
+            merge_df = genes_df.merge(self.pvog_hmm_df,
+                                      left_on=genes_df.gene,
+                                      right_on=self.pvog_hmm_df.gene,
+                                      how="left").drop(["key_0", "gene_y"], axis=1)
+            merge_df.rename(columns={'gene_x': 'gene'}, inplace=True)
+
+            merge_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
+            list_dfs.append(merge_df)
+
+        concat_df = pd.concat(list_dfs)
+
+        out_table_name2 = self.genome_dir + self.dir_sep + "out_gene_annotations_plus_pvog.txt"
+
+        concat_df.to_csv(path_or_buf=out_table_name2, sep='\t', index=False)
 
 
 def annotate(args_in):
