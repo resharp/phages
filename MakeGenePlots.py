@@ -323,7 +323,7 @@ class MakeGenePlots:
         #     if str(row.gene_fam) != "nan":
         #         label = label + " " + str(row.gene_fam)
         if row.Annotation:
-            if row.Annotation != "unknown function":
+            if row.Annotation != "unknown":
                 label = label + " " + row.Annotation
 
         label = label.replace("hypothetical ", "")

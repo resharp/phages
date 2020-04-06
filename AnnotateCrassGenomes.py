@@ -97,6 +97,8 @@ class AnnotateCrassGenomes:
                                           , index_col=None
                                           , usecols=range(0,23)
                                           )
+        self.yutin_genes_df.rename(columns={'gene_annot': 'annot_yutin_hmm'}, inplace=True)
+
         # print(self.yutin_genes_df.dtypes)
         print("number of conserved genes: {nr_genes}".format(nr_genes=len(self.yutin_genes_df)))
 
@@ -110,6 +112,7 @@ class AnnotateCrassGenomes:
                                          , dtype={"yutin_gene_nr": "str"})
         # we had to change yutin_gene_nr to dtype object in order to join it with yutin_genes_df.yutin_gene_nr (e.g.46N)
         print("number of proteins in annotated crAssphage: {nr_proteins}".format(nr_proteins=len(self.crass_genes_df)))
+        self.crass_genes_df.rename(columns={'annotation': 'annot_genbank'}, inplace=True)
 
         self.read_pvog_files()
 
@@ -121,6 +124,8 @@ class AnnotateCrassGenomes:
         self.pvog_annot_df= pd.read_csv(self.pvog_annotation_name
                                         , sep="\t"
                                         )
+        self.pvog_annot_df.rename(columns={'annotation_processed': 'annot_pvog'
+                                           , 'annotation_raw': 'annot_pvog_raw'}, inplace=True)
 
         self.pvog_hmm_results_name = self.genome_dir + self.dir_sep + self.pvog_hmm_results_name
 
@@ -133,7 +138,7 @@ class AnnotateCrassGenomes:
                                        , names=["gene", "pvog", "e_value", "score"]
                                        )
 
-        # to do: what cut-off should we use here?
+        # to do: what cut-off should we use here? 1e-30 or higher?
         # what happens if we take a more relaxed cut-off?
         self.pvog_hmm_df = self.pvog_hmm_df[self.pvog_hmm_df.e_value < 1e-10]
 
@@ -174,10 +179,12 @@ class AnnotateCrassGenomes:
         print("check nr of lines in merge_df: {nr_lines}".format(nr_lines=len(merge_df)))
         # merge_df.rename(columns={'gene_x': 'gene'}, inplace=True)
 
-        merge_df = merge_df.merge(self.yutin_genes_df[["gene_fam","yutin_gene_nr","gene_annot"]],
+        merge_df = merge_df.merge(self.yutin_genes_df[["gene_fam","yutin_gene_nr","annot_yutin_hmm"]],
                                   left_on=merge_df.gene_fam,
                                   right_on=self.yutin_genes_df.gene_fam,
                                   how="left").drop(["key_0"], axis=1)
+
+        # to do: consider joining on gene_fam instead of yutin gene number
         merge_df = merge_df.merge(self.crass_genes_df,
                                   left_on=merge_df.yutin_gene_nr,
                                   right_on=self.crass_genes_df.yutin_gene_nr,
@@ -193,7 +200,7 @@ class AnnotateCrassGenomes:
         self.merge_df.to_csv(path_or_buf=out_table_name, sep='\t', index=False)
 
         # now also write one file for every ref genome with only the annotations
-        # with no annotation, make it "unknown function"
+        # with no annotation, make it "unknown"
         genomes = self.merge_df.genome.unique()
 
         list_dfs = []
@@ -201,21 +208,22 @@ class AnnotateCrassGenomes:
         for genome in genomes:
 
             gene_list_name = self.genome_dir + self.dir_sep + "{genome}_gene_list.txt".format(genome=genome)
-            genes_df = self.merge_df[self.merge_df.genome == genome][["gene", "gene_fam", "region", "annotation"]]
+            genes_df = self.merge_df[
+                self.merge_df.genome == genome][["gene", "gene_fam", "annot_yutin_hmm", "region", "annot_genbank"]]
 
             # if genome == 'crassphage_refseq', take region from original file (and not by joining on gene_fam)
             # it is already in self.crass_genes_df!
             if genome == "crassphage_refseq":
                 genes_df = genes_df.drop("region", axis=1)
-                genes_df = genes_df.drop("annotation", axis=1)
+                genes_df = genes_df.drop("annot_genbank", axis=1)
 
-                regions_df = self.crass_genes_df[['protein', 'region', 'annotation']]
+                regions_df = self.crass_genes_df[['protein', 'region', 'annot_genbank']]
                 genes_df = genes_df.merge(regions_df,
                                           left_on=genes_df.gene,
                                           right_on=regions_df.protein,
-                                          how="inner")[['gene', 'gene_fam', 'region', 'annotation']]
+                                          how="inner")[['gene', 'gene_fam', 'annot_yutin_hmm', 'region', 'annot_genbank']]
 
-            genes_df.loc[genes_df.annotation.isnull(), "annotation"] = "unknown function"
+            genes_df.loc[genes_df.annot_genbank.isnull(), "annot_genbank"] = "unknown"
 
             # add annotation from pvogs, we can add columns because MakeGenePlots
             merge_df = genes_df.merge(self.pvog_hmm_df,
@@ -228,10 +236,36 @@ class AnnotateCrassGenomes:
             list_dfs.append(merge_df)
 
         concat_df = pd.concat(list_dfs)
+        concat_df = self.get_annotation_from_multiple_sources(concat_df)
 
         out_table_name2 = self.genome_dir + self.dir_sep + "out_gene_annotations_plus_pvog.txt"
 
         concat_df.to_csv(path_or_buf=out_table_name2, sep='\t', index=False)
+
+    def get_annotation_from_multiple_sources(self, data):
+
+        data.loc[data.annot_genbank == "hypothetical protein", "annot_genbank"] = "unknown"
+
+        data["annotation"] = data.apply(self.derived_annotation, axis=1)
+
+        return data
+
+    @staticmethod
+    def derived_annotation(row):
+        annotation = row.annot_genbank
+        source = "G"
+
+        if annotation == "unknown":
+            if not pd.isna(row.annot_yutin_hmm):
+                annotation = row.annot_yutin_hmm
+                source = "Y"
+
+        if annotation == "Uncharacterized protein" or annotation == "unknown":
+            if not pd.isna(row.annot_pvog):
+                annotation = row.annot_pvog
+                source = "P"
+
+        return source + "-" + annotation
 
 
 def annotate(args_in):
