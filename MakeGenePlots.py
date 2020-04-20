@@ -110,7 +110,7 @@ class MakeGenePlots:
         anno_df = pd.read_csv(gene_anno_file_name
                               ,   sep='\t'
                               ,   header=None
-                              ,   usecols=[0, 1, 2, 3]
+                              ,   usecols=[0, 1, 3, 10]
                               ,   names=["Protein", "gene_fam", "region", "Annotation"]
                               )
         anno_df["ref"] = ref
@@ -139,7 +139,9 @@ class MakeGenePlots:
 
     def create_plot_dir(self, ref):
 
-        self.plot_dir = self.sample_dir + self.dir_sep + ref + "_" + "GenePlots"
+        # the 0.95.10x suffix to the directory, not to every file name
+        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
+        self.plot_dir = self.sample_dir + self.dir_sep + ref + "_" + "GenePlots" + self.dir_sep + suffix
         os.makedirs(self.plot_dir, exist_ok=True)
 
     def create_histograms(self):
@@ -649,10 +651,13 @@ class MakeGenePlots:
         anno_list = []
 
         for file in files:
+
+            # to do: we might also use pvogs as gene fam to group on
+            # change columns to 0,1,3,10 (final annotation in column 10)
             anno_df = pd.read_csv(file
                                   , sep='\t'
                                   , header=None
-                                  , usecols=[0, 1, 2, 3]
+                                  , usecols=[0, 1, 3, 10]
                                   , names=["Protein", "gene_fam", "region", "Annotation"]
                                   , skiprows=1
                                   )
@@ -727,7 +732,10 @@ class MakeGenePlots:
                , ylabel='{measure} of gene data points used'.format(measure=measure))
         # plt.show()
 
-        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
+        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
+        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
+        os.makedirs(self.plot_dir, exist_ok=True)
+
         figure_name = "{}{}family_plots.gene_usage.{measure}.{title}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
             title=title.replace(" ", "_"),
@@ -916,7 +924,9 @@ class MakeGenePlots:
         sns.swarmplot(x=measure, y=agg_field, data=family_df,
                       size=2, color=".3", linewidth=0)
 
-        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots"
+        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
+        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
+
         os.makedirs(self.plot_dir, exist_ok=True)
         figure_name = "{}{}family_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep, agg_field,
