@@ -140,7 +140,9 @@ class AnnotateCrassGenomes:
 
         # to do: what cut-off should we use here? 1e-30 or higher?
         # what happens if we take a more relaxed cut-off?
-        self.pvog_hmm_df = self.pvog_hmm_df[self.pvog_hmm_df.e_value < 1e-10]
+        # more relaxed cut-off is better for comparison with Guerin
+        # self.pvog_hmm_df = self.pvog_hmm_df[self.pvog_hmm_df.e_value < 1e-10]
+        self.pvog_hmm_df = self.pvog_hmm_df[self.pvog_hmm_df.e_value < 0.2]
 
         merge_df = self.pvog_hmm_df.merge(self.pvog_annot_df,
                                           left_on=self.pvog_hmm_df.pvog,
@@ -232,11 +234,12 @@ class AnnotateCrassGenomes:
                                       how="left").drop(["key_0", "gene_y"], axis=1)
             merge_df.rename(columns={'gene_x': 'gene'}, inplace=True)
 
+            merge_df = self.get_annotation_from_multiple_sources(merge_df)
+
             merge_df.to_csv(path_or_buf=gene_list_name, sep='\t', index=False)
             list_dfs.append(merge_df)
 
         concat_df = pd.concat(list_dfs)
-        concat_df = self.get_annotation_from_multiple_sources(concat_df)
 
         out_table_name2 = self.genome_dir + self.dir_sep + "out_gene_annotations_plus_pvog.txt"
 
