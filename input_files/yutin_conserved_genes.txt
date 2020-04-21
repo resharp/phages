@@ -36,5 +36,5 @@ rIIA protector from prophage-induced early lysis	gene50b	 -	77						Y	Y									
 rIIB protector from prophage-induced early lysis	gene51b	 -	76						Y	Y									Y	Y		Y	
 Polymerase A	PolA	 -	65					Y	Y	Y									Y	Y		Y	
 Ligase	ligase25																						
-Flavin-dependent thymidylate synthase	ThyX																						
+Thymidylate synthase	ThyX																						
 dUTP diphosphatase	dUTP																						

@@ -110,8 +110,8 @@ class MakeGenePlots:
         anno_df = pd.read_csv(gene_anno_file_name
                               ,   sep='\t'
                               ,   header=None
-                              ,   usecols=[0, 1, 3, 10]
-                              ,   names=["Protein", "gene_fam", "region", "Annotation"]
+                              ,   usecols=[0, 1, 2, 3, 10]
+                              ,   names=["Protein", "gene_fam", "gene_fam_annot", "region", "Annotation"]
                               )
         anno_df["ref"] = ref
 
@@ -232,7 +232,6 @@ class MakeGenePlots:
             data = data[data[breadth_field] > self.threshold_breadth]
 
         data["label"] = data.apply(self.label, axis=1)
-        # to do
         self.filtered_gene_sample_df = data
 
         # this was the old way of filtering (when we always had enough depth in the pilot):
@@ -501,13 +500,11 @@ class MakeGenePlots:
                     ds_1 = data[data.region == region1][measure]
                     ds_2 = data[data.region == region2][measure]
 
-                    # to do: replace by Mann-Whitney U test
                     mw_result = mannwhitneyu(x=ds_1, y=ds_2)
                     mw_data.loc[region1, region2] = mw_result.pvalue
 
         mw_data = mw_data.drop(['region1', 'region2', 'measure'], axis=1)
 
-        # to do: max half of the values
         mask = self.get_diagonal_mask(mw_data)
 
         title = "Mann-Whitney U test between regions"
@@ -644,12 +641,11 @@ class MakeGenePlots:
         for file in files:
 
             # to do: we might also use pvogs as gene fam to group on
-            # change columns to 0,1,3,10 (final annotation in column 10)
             anno_df = pd.read_csv(file
                                   , sep='\t'
                                   , header=None
-                                  , usecols=[0, 1, 3, 10]
-                                  , names=["Protein", "gene_fam", "region", "Annotation"]
+                                  , usecols=[0, 1, 2, 3, 10]
+                                  , names=["Protein", "gene_fam", "gene_fam_annot", "region", "Annotation"]
                                   , skiprows=1
                                   )
             ref = file.split(self.dir_sep)[-1].replace("_gene_list.txt", "")
@@ -758,13 +754,13 @@ class MakeGenePlots:
 
         data = data[data.gene_fam.isnull() == False]
 
-        fam_df = data.groupby("gene_fam").agg(
+        fam_df = data.groupby(["gene_fam", "gene_fam_annot"]).agg(
             {
                 'log10_pN/pS': ["mean", "count"]
             }).reset_index()
 
         fam_df.columns = ["_".join(x) for x in fam_df.columns.ravel()]
-        fam_df.rename(columns={'gene_fam_': 'gene_fam'}, inplace=True)
+        fam_df.rename(columns={'gene_fam_': 'gene_fam', 'gene_fam_annot_' : 'gene_fam_annot'}, inplace=True)
 
         self.fam_df = fam_df.sort_values(by='log10_pN/pS_mean', ascending=False)
 
@@ -774,9 +770,11 @@ class MakeGenePlots:
                                  left_on=data.gene_fam,
                                  right_on=fam_df.gene_fam,
                                  how="inner").drop(["key_0", "gene_fam_y"], axis=1)
-        df_gene_fam.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
+        df_gene_fam.rename(columns={'gene_fam_x': 'gene_fam', 'gene_fam_annot_y': 'gene_fam_annot'}, inplace=True)
 
         df_gene_fam = df_gene_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
+
+        df_gene_fam['gene_fam_label'] = df_gene_fam['gene_fam'] + " " + df_gene_fam['gene_fam_annot']
 
         self.gene_fam_sample_df = df_gene_fam
 
@@ -899,14 +897,14 @@ class MakeGenePlots:
 
     def make_box_swarm_plot(self, family_df, measure):
 
-        title = "Family values"
+        title = "Family values for pN_pS"
         plt.figure(figsize=(12, 10))
         plt.title("{title} ({breadth}/{depth}x)".
                   format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         sns.set(style="ticks")
 
-        agg_field = "gene_fam"
+        agg_field = "gene_fam_label"
         # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
         sns.boxplot(x=measure, y=agg_field, data=family_df,
