@@ -216,10 +216,6 @@ class MakeGenePlots:
 
         # assert(len(data) == len(merge_df))
 
-        # to do this contains the BUG
-        # we should join on data["sample"] AND data["ref"]
-        # however self.gene_sample_df does not contain ref! and it should
-        # so we first have to join on annotation, and only then on the filtered samples
         data = merge_df.merge(filtered_sample,
                               left_on=[merge_df["sample"], merge_df.ref],
                               right_on=[filtered_sample["sample"], filtered_sample.ref],
@@ -315,14 +311,13 @@ class MakeGenePlots:
         )
         merge_df.to_csv(filename, index=False, sep='\t')
 
-    def label(self, row):
+    @staticmethod
+    def label(row):
 
         label = ""
         if row.Protein:
             label = label + row.Protein
-        # if row.gene_fam:
-        #     if str(row.gene_fam) != "nan":
-        #         label = label + " " + str(row.gene_fam)
+
         if row.Annotation:
             if row.Annotation != "unknown":
                 label = label + " " + row.Annotation
@@ -774,9 +769,19 @@ class MakeGenePlots:
 
         df_gene_fam = df_gene_fam.sort_values(by='log10_pN/pS_mean', ascending=False)
 
-        df_gene_fam['gene_fam_label'] = df_gene_fam['gene_fam'] + " " + df_gene_fam['gene_fam_annot']
+        df_gene_fam["gene_fam_label"] = df_gene_fam.apply(self.gene_fam_label, axis=1)
 
         self.gene_fam_sample_df = df_gene_fam
+
+    @staticmethod
+    def gene_fam_label(row):
+
+        if row.gene_fam_annot == "Uncharacterized protein":
+            label = row.gene_fam + " (unknown func.)"
+        else:
+            label = row.gene_fam_annot
+        label = label.replace("protein", "pr.")
+        return label
 
     def write_gene_fam_sample(self):
 
@@ -869,18 +874,19 @@ class MakeGenePlots:
                           left_on=data.gene_fam,
                           right_on=df_top_fam.gene_fam,
                           how="inner").drop(["key_0", "gene_fam_y"], axis=1)
-        data.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
+        data.rename(columns={'gene_fam_x': 'gene_fam', 'gene_fam_annot_y' : 'gene_fam_annot'}, inplace=True)
 
-        self.plot_family_and_ref(data=data, kind="swarm", ds_order=df_top_fam.gene_fam)
-        self.plot_family_and_ref(data=data, kind="box", ds_order=df_top_fam.gene_fam)
+        self.plot_family_and_ref(data=data, kind="swarm", ds_order=df_top_fam.gene_fam_annot)
+        self.plot_family_and_ref(data=data, kind="box", ds_order=df_top_fam.gene_fam_annot)
 
     def plot_family_and_ref(self, data, kind, ds_order):
 
         # to do hue is not correct it should be ref_y, but where does the incorrect ref come from?
-        sns.catplot(x="gene_fam", y="log10_pN/pS", kind=kind, data=data, hue="ref",
+        ax = sns.catplot(x="gene_fam_annot", y="log10_pN/pS", kind=kind, data=data, hue="ref",
                     palette=sns.color_palette(n_colors=10),
                     order=ds_order, height=3.5, aspect=3)
 
+        ax.set(xlabel='gene family', ylabel='log10(pN/pS)')
         title ="top 5 most conserved gene families {breadth}/{depth}x".format(
             breadth=self.threshold_breadth, depth=self.threshold_depth)
         plt.title(title)
@@ -891,14 +897,13 @@ class MakeGenePlots:
             kind=kind,
             depth=self.threshold_depth, breadth=self.threshold_breadth,
         )
-
         plt.savefig(figure_name)
         plt.clf()
 
     def make_box_swarm_plot(self, family_df, measure):
 
         title = "Family values for pN_pS"
-        plt.figure(figsize=(12, 10))
+        plt.figure(figsize=(18, 10))
         plt.title("{title} ({breadth}/{depth}x)".
                   format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
@@ -910,8 +915,10 @@ class MakeGenePlots:
         sns.boxplot(x=measure, y=agg_field, data=family_df,
                     whis="range", palette="vlag")
 
-        sns.swarmplot(x=measure, y=agg_field, data=family_df,
+        ax = sns.swarmplot(x=measure, y=agg_field, data=family_df,
                       size=2, color=".3", linewidth=0)
+
+        ax.set(xlabel='log10(pN/pS)', ylabel='gene family')
 
         suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
         self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
