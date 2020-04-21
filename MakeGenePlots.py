@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns;sns.set()
-from scipy.stats import ks_2samp
+from scipy.stats import mannwhitneyu
 import sys
 
 # MakeGenePlots
@@ -309,7 +309,7 @@ class MakeGenePlots:
         self.gene_df = merge_df
 
         merge_df = merge_df[['Protein', 'gene_fam',
-                             'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'Annotation']]
+                             'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'region', 'Annotation']]
 
         filename = self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.{breadth}.{depth}x.txt".format(
             depth=self.threshold_depth, breadth=self.threshold_breadth
@@ -356,12 +356,7 @@ class MakeGenePlots:
 
         # head only works because self.gene_df is already ordered by log10_pN/pS_mean in score_genes_..()
         top10_data = filter_data.head(10)[['Protein', 'log10_pN/pS_mean', 'label']]
-        self.create_box_plot(top10_data, "label", "log10_pN/pS",
-                             "top 10 pos selection present in at least {} samples".format(min_nr_samples))
-
         bottom10_data = filter_data.tail(10)[['Protein', 'log10_pN/pS_mean', 'label']]
-        self.create_box_plot(bottom10_data, "label", "log10_pN/pS",
-                             "top 10 most conserved present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
         self.create_box_plot(combined_data, "label", "log10_pN/pS",
@@ -373,12 +368,7 @@ class MakeGenePlots:
         filter_data = self.gene_df[self.gene_df['entropy_mean_count'] >= min_nr_samples]
 
         top10_data = filter_data.head(10)[['Protein', 'entropy_mean_mean', 'label']]
-        self.create_box_plot(top10_data, "label", "entropy_mean",
-                             "top 10 internal var present in at least {} samples".format(min_nr_samples))
-
         bottom10_data = filter_data.tail(10)[['Protein', 'entropy_mean_mean', 'label']]
-        self.create_box_plot(bottom10_data, "label", "entropy_mean",
-                             "bottom 10 internal var present in at least {} samples".format(min_nr_samples))
 
         combined_data = pd.DataFrame.append(top10_data, bottom10_data)
         self.create_box_plot(combined_data, "label", "entropy_mean",
@@ -494,38 +484,39 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
         plt.clf()
-        self.make_ks_heat_maps(data, measure)
+        self.make_mw_heat_maps(data, measure)
 
-    def make_ks_heat_maps(self, data, measure):
+    def make_mw_heat_maps(self, data, measure):
 
-        ks_data = pd.DataFrame(columns=['region1', 'region2', 'measure'])
-        ks_data.set_index(['region1', 'region2'])
+        mw_data = pd.DataFrame(columns=['region1', 'region2', 'measure'])
+        mw_data.set_index(['region1', 'region2'])
 
         regions1 = data.region.unique()
         regions2 = regions1.copy()
         for region1 in regions1:
             for region2 in regions2:
                 if region1 == region2:
-                    ks_data.loc[region1, region2] = 1
+                    mw_data.loc[region1, region2] = 1
                 else:
                     ds_1 = data[data.region == region1][measure]
                     ds_2 = data[data.region == region2][measure]
 
-                    ks_result = ks_2samp(data1=ds_1, data2=ds_2)
-                    ks_data.loc[region1, region2] = ks_result.pvalue
+                    # to do: replace by Mann-Whitney U test
+                    mw_result = mannwhitneyu(x=ds_1, y=ds_2)
+                    mw_data.loc[region1, region2] = mw_result.pvalue
 
-        ks_data = ks_data.drop(['region1', 'region2', 'measure'], axis=1)
+        mw_data = mw_data.drop(['region1', 'region2', 'measure'], axis=1)
 
         # to do: max half of the values
-        mask = self.get_diagonal_mask(ks_data)
+        mask = self.get_diagonal_mask(mw_data)
 
-        title = "Kolmogorov–Smirnov test between regions"
+        title = "Mann-Whitney U test between regions"
 
         plt.title("{ref}: {title} ({breadth}/{depth}x)".
                   format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         # to do: pimp this picture
-        ax = sns.heatmap(ks_data, cmap="seismic_r", annot=True, mask=mask)
+        ax = sns.heatmap(mw_data, cmap="seismic_r", annot=True, mask=mask)
 
         figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
@@ -798,12 +789,12 @@ class MakeGenePlots:
 
         self.gene_fam_sample_df.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
-    def ks_significance_fam_values(self):
+    def mw_significance_fam_values(self):
 
         data = self.gene_fam_sample_df
 
-        ks_data = pd.DataFrame(columns=['fam1', 'fam2', 'measure'])
-        ks_data.set_index(['fam1', 'fam2'])
+        mw_data = pd.DataFrame(columns=['fam1', 'fam2', 'measure'])
+        mw_data.set_index(['fam1', 'fam2'])
 
         measure = "log10_pN/pS"
 
@@ -813,40 +804,40 @@ class MakeGenePlots:
         for fam1 in fams1:
             for fam2 in fams2:
                 if fam1 == fam2:
-                    ks_data.loc[fam1, fam2] = 1
+                    mw_data.loc[fam1, fam2] = 1
                 else:
                     ds_1 = data[data.gene_fam == fam1][measure]
                     ds_2 = data[data.gene_fam == fam2][measure]
 
-                    ks_result = ks_2samp(data1=ds_1, data2=ds_2)
-                    ks_data.loc[fam1, fam2] = ks_result.pvalue
+                    mw_result = mannwhitneyu(x=ds_1, y=ds_2)
+                    mw_data.loc[fam1, fam2] = mw_result.pvalue
 
-        ks_data = ks_data.drop(['fam1', 'fam2', 'measure'], axis=1)
+        mw_data = mw_data.drop(['fam1', 'fam2', 'measure'], axis=1)
 
-        ks_file_name = "{}{}gene_plots.compare_fams.{measure}.{breadth}.{depth}x.txt".format(
+        mw_file_name = "{}{}gene_plots.compare_fams.{measure}.{breadth}.{depth}x.txt".format(
             self.plot_dir, self.dir_sep,
             measure=measure.replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
-        ks_data.to_csv(path_or_buf=ks_file_name, sep='\t')
+        mw_data.to_csv(path_or_buf=mw_file_name, sep='\t')
 
-        mask = self.get_diagonal_mask(ks_data)
+        mask = self.get_diagonal_mask(mw_data)
 
         # trick to only show the significant values
-        ks_data_significant = ks_data[ks_data < 0.05]
+        mw_data_significant = mw_data[mw_data < 0.05]
 
-        ks_data_significant = -np.log10(ks_data_significant)
+        mw_data_significant = -np.log10(mw_data_significant)
 
         sns.set(font_scale=0.8)
 
-        title = "Kolmogorov–Smirnov test between gene fams"
+        title = "Mann-Whitney U test between gene fams"
 
         plt.figure(figsize=(14, 10))
         plt.title("{title} ({breadth}/{depth}x)".
                   format(title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         # to do: pimp this picture
-        ax = sns.heatmap(ks_data_significant, cmap="seismic", annot=False, mask=mask)
+        ax = sns.heatmap(mw_data_significant, cmap="seismic", annot=False, mask=mask)
 
         figure_name = "{}{}gene_plots.compare_fams.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
@@ -952,7 +943,7 @@ class MakeGenePlots:
 
         self.write_gene_fam_sample()
 
-        self.ks_significance_fam_values()
+        self.mw_significance_fam_values()
 
         self.plot_gene_families()
 
