@@ -3,7 +3,7 @@ PD-(D E)XK family nuclease	gene85	85	71	Y	Y	Y	Y	Y			Y	Y	Y	Y			Y	Y	Y	Y	Y	Y
 Terminase	terminase	79	15	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
 Portal	portal	78	16	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
 putative structural protein	gene77	77	32	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
-MCP	MCP	76	33	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
+Major Capsid Protein	MCP	76	33	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
 putative structural protein	gene75	75	34	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
 putative structural protein	gene74	74	35, 36	Y	Y	Y	Y	Y	Y	Y		  Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	Y	
 putative structural protein	gene73	73	-	  Y	Y	Y	Y		Y	Y	Y			Y	Y	Y	Y	Y	Y	Y	Y		
@@ -21,11 +21,11 @@ Uncharacterized protein	gene49	49	-	Y	   Y  	Y	Y		Y	Y							Y	Y			Y	Y
 Uncharacterized protein	gene34	34	 -	Y	Y	Y	Y							Y	Y					Y			
 Siphovirus Gp157 homolog	gene32	32	 -	Y	Y	Y	Y	Y															
 Uncharacterized protein	gene23	23	 -	Y	Y	Y	Y																
-ssb 	gene21	21	 -	Y	Y	Y	Y																
-RecT	gene19	19	 -	Y	Y	Y	Y																
-PolB	PolB	17	 -	Y	Y	Y	Y						Y				Y	Y			Y		
+single stranded DNA-binding pr.	gene21	21	 -	Y	Y	Y	Y																
+phage RecT recombinase	gene19	19	 -	Y	Y	Y	Y																
+Polymerase B	PolB	17	 -	Y	Y	Y	Y						Y				Y	Y			Y		
 Uncharacterized protein	gene20	20	 -	Y	Y	Y	Y																
-UDG	UDG	16	75	Y	Y	Y	Y	Y		Y							Y	Y		Y	Y	Y	
+Uracil-DNA glycosylase	UDG	16	75	Y	Y	Y	Y	Y		Y							Y	Y		Y	Y	Y	
 SF1 helicase	SF1_helicase15	15	 -	Y	Y	Y	Y																
 Rep_Org , putative replisome organizer protein 	gene40b	 -	86					Y	Y	Y			Y						Y	Y		Y	
 phage replicative helicase, DnaB family	gene41b	 -	85					Y	Y	Y	Y		Y	Y	Y		Y	Y	Y	Y	Y	Y	
@@ -34,4 +34,7 @@ Uncharacterized protein 45b	gene45b	 -	81					Y	Y	Y							Y					Y
 Uncharacterized protein 48b	gene48b	 -	73						Y	Y	Y	Y	Y									Y	
 rIIA protector from prophage-induced early lysis	gene50b	 -	77						Y	Y									Y	Y		Y	
 rIIB protector from prophage-induced early lysis	gene51b	 -	76						Y	Y									Y	Y		Y	
-PolA	PolA	 -	65					Y	Y	Y									Y	Y		Y	
+Polymerase A	PolA	 -	65					Y	Y	Y									Y	Y		Y	
+Ligase	ligase25																						
+Flavin-dependent thymidylate synthase	ThyX																						
+dUTP diphosphatase	dUTP																						
