@@ -8,6 +8,7 @@ import seaborn as sns;sns.set()
 from scipy.stats import entropy
 import sys
 
+
 # MakeSamplePlots
 # goal: show sample statistics. How many reads are mapped to what reference genomes?
 # how does it relate to some metadata?
@@ -30,6 +31,8 @@ class MakeSamplePlots:
     sample_measures_df = None
     merge_df = None
     genus_sorted_df = None
+
+    genus_palette = {}
 
     filter = ""
 
@@ -86,6 +89,8 @@ class MakeSamplePlots:
 
     def read_ref_metadata(self):
 
+        # to do: also read from ref_dir
+        # and add color palettes the same way as in MakeGenePlots
         # NB: ref_genome_ids.txt should be copied from scripts/mgx/ref_seqs
         ref_file_name = self.sample_dir + self.dir_sep + "ref_genome_ids.txt"
 
@@ -95,6 +100,22 @@ class MakeSamplePlots:
                                        , comment="#"
                                        , names=["ref", "genus"]
                                        )
+        self.ref_meta_df.genus = self.ref_meta_df.apply(self.shorten_genus, axis=1)
+
+        # to do: cleaner way to exclude this row
+        self.ref_meta_df = self.ref_meta_df[self.ref_meta_df.ref != "NC_024711.1"]
+
+        self.build_color_palette_from_ref()
+
+    # use same color coding in MakeGenePlots for consistent color coding of genera and accompanying refs
+    def build_color_palette_from_ref(self):
+        # If you would like to extend manually on the palette colors and copy color codes see:
+        # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
+        colors = sns.color_palette("bright", n_colors=10)
+        i = 0
+        for index, row in self.ref_meta_df.iterrows():
+            self.genus_palette[row.genus] = colors[i]
+            i = i + 1
 
     def read_sample_measures(self):
 
@@ -158,7 +179,9 @@ class MakeSamplePlots:
         figure_name = "{}{}sample_plots.totals.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
 
         sns.barplot(self.genus_sorted_df.genus, self.genus_sorted_df.mapped_sum, log=True
-                    , order=self.genus_sorted_df.genus)
+                    , order=self.genus_sorted_df.genus
+                    , palette=self.genus_palette)
+
         plt.title("total reads mapped for genera")
         plt.savefig(figure_name)
         plt.clf()
@@ -232,7 +255,8 @@ class MakeSamplePlots:
         for depth in depths:
             for perc in percentages:
                 sns.barplot(x=counts_df.genus,
-                            y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)])
+                            y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)],
+                            palette=self.genus_palette)
 
                 figure_name = "{dir}{sep}sample_plots.filter.{depth}.{perc}_perc.pdf".format(
                     dir=self.plot_dir, sep=self.dir_sep, depth=depth, perc=perc

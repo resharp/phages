@@ -38,6 +38,9 @@ class MakeGenePlots:
 
     fam_df = None
     gene_fam_sample_df = None
+    ref_meta_df = None
+    ref_palette = {}
+    genus_palette = {}
 
     bin_sample_df = None
     bin_df = None
@@ -625,6 +628,8 @@ class MakeGenePlots:
 
         self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt")
 
+        self.read_ref_metadata()
+
         logging.info("finished reading tables")
 
     def read_all_annotations(self):
@@ -649,6 +654,37 @@ class MakeGenePlots:
             anno_list.append(anno_df)
 
         return pd.concat(anno_list)
+
+    def read_ref_metadata(self):
+
+        ref_file_name = self.ref_dir + self.dir_sep + "ref_genome_ids.txt"
+
+        self.ref_meta_df = pd.read_csv(ref_file_name
+                                       , sep="\t"
+                                       , header=None
+                                       , comment="#"
+                                       , names=["ref", "genus"]
+                                       )
+        self.ref_meta_df.genus = self.ref_meta_df.apply(self.shorten_genus, axis=1)
+
+        # to do: cleaner way to exclude this row
+        self.ref_meta_df = self.ref_meta_df[self.ref_meta_df.ref != "NC_024711.1"]
+
+        self.build_color_palette_from_ref()
+
+    @staticmethod
+    def shorten_genus(row):
+        return row.genus.replace("genus_", "")
+
+    def build_color_palette_from_ref(self):
+        # If you would like to extend manually on the palette colors and copy color codes see:
+        # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
+        colors = sns.color_palette("bright", n_colors=10)
+        i = 0
+        for index, row in self.ref_meta_df.iterrows():
+            self.ref_palette[row.ref] = colors[i]
+            self.genus_palette[row.genus] = colors[i]
+            i = i + 1
 
     def breadth_statistics_for_choosing_threshold(self):
 
@@ -881,9 +917,9 @@ class MakeGenePlots:
 
     def plot_family_and_ref(self, data, kind, ds_order):
 
-        # to do hue is not correct it should be ref_y, but where does the incorrect ref come from?
+        # this plots uses a color code based on the ref ids
         ax = sns.catplot(x="gene_fam_annot", y="log10_pN/pS", kind=kind, data=data, hue="ref",
-                    palette=sns.color_palette(n_colors=10),
+                    palette=self.ref_palette,
                     order=ds_order, height=3.5, aspect=3)
 
         ax.set(xlabel='gene family', ylabel='log10(pN/pS)')
