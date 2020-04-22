@@ -144,7 +144,12 @@ class MakeGenePlots:
 
         # the 0.95.10x suffix to the directory, not to every file name
         suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
+
+        # write to .local folder when run locally (not on server)
+        if os.name == 'nt':
+            suffix = suffix + ".local"
         self.plot_dir = self.sample_dir + self.dir_sep + ref + "_" + "GenePlots" + self.dir_sep + suffix
+
         os.makedirs(self.plot_dir, exist_ok=True)
 
     def create_histograms(self):
@@ -503,7 +508,11 @@ class MakeGenePlots:
 
         mw_data = mw_data.drop(['region1', 'region2', 'measure'], axis=1)
 
-        mask = self.get_diagonal_mask(mw_data)
+        # trick to only show the significant values
+        mw_data_significant = mw_data[mw_data < 0.05]
+        mw_data_significant = -np.log10(mw_data_significant)
+
+        mask = self.get_diagonal_mask(mw_data_significant)
 
         title = "Mann-Whitney U test between regions"
 
@@ -511,7 +520,7 @@ class MakeGenePlots:
                   format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         # to do: pimp this picture
-        ax = sns.heatmap(mw_data, cmap="seismic_r", annot=True, mask=mask)
+        ax = sns.heatmap(mw_data_significant, cmap="seismic_r", annot=True, mask=mask)
 
         figure_name = "{}{}gene_plots.compare_regions.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
