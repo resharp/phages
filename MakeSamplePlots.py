@@ -178,9 +178,10 @@ class MakeSamplePlots:
 
         figure_name = "{}{}sample_plots.totals.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
 
-        sns.barplot(self.genus_sorted_df.genus, self.genus_sorted_df.mapped_sum, log=True
+        ax = sns.barplot(self.genus_sorted_df.genus, self.genus_sorted_df.mapped_sum, log=True
                     , order=self.genus_sorted_df.genus
                     , palette=self.genus_palette)
+        ax.set(xlabel='crAss-like genus', ylabel='total # of reads mapped')
 
         plt.title("total reads mapped for genera")
         plt.savefig(figure_name)
@@ -254,9 +255,15 @@ class MakeSamplePlots:
         percentages = [1, 5, 20, 80, 95]
         for depth in depths:
             for perc in percentages:
-                sns.barplot(x=counts_df.genus,
-                            y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)],
-                            palette=self.genus_palette)
+                ax = sns.barplot(x=counts_df.genus,
+                                 y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)],
+                                 palette=self.genus_palette,
+                                 order=self.genus_sorted_df.genus
+                                 )
+
+                ax.set(xlabel='crAss-like genus', ylabel='#of samples with breadth > {perc}% for {depth}'.
+                       format(depth=depth, perc=perc))
+                plt.title("number of samples in which genera are detected")
 
                 figure_name = "{dir}{sep}sample_plots.filter.{depth}.{perc}_perc.pdf".format(
                     dir=self.plot_dir, sep=self.dir_sep, depth=depth, perc=perc

@@ -718,11 +718,7 @@ class MakeGenePlots:
 
     def make_cumulation_plot_for_breadth_thresholds(self, df, refs, measure):
 
-        colors = sns.color_palette("husl", n_colors=len(refs))
-
         fig, ax = plt.subplots(figsize=(12, 5))
-
-        ref_nr = 0
 
         if measure == "count":
             max_y = df[measure].max() + 1
@@ -738,9 +734,8 @@ class MakeGenePlots:
 
             sns.lineplot(x=df_ref.percentage,
                          y=df_ref[measure],
-                         color=colors[ref_nr],
+                         color=self.ref_palette[ref],
                          ax=ax)
-            ref_nr = ref_nr + 1
 
         title = "{measure} of data points for genes for {depth}x breadth thresholds".format(
             depth=self.threshold_depth, measure=measure)
@@ -748,7 +743,6 @@ class MakeGenePlots:
         ax.legend(refs, facecolor='w')
         ax.set(xlabel='breadth percentage for gene'
                , ylabel='{measure} of gene data points used'.format(measure=measure))
-        # plt.show()
 
         suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
         self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
