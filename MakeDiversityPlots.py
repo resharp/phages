@@ -16,6 +16,8 @@ from scipy.stats import linregress
 #
 # 3. determine significance of trend lines (and significance of distributions?)
 #
+#
+# to do: add gene filter 50% or 95% 10x
 # to do: add annotation to self.protein_df (so after aggregation per Protein and age category)
 #        so we can compare if measures differ more per age than per region (functional category)
 # to do: pN/pS calculation for genes per age category per region
@@ -23,18 +25,22 @@ from scipy.stats import linregress
 # to do: violin plot with x=region and hue=age_cat for entropy and/or SNP density
 # to do: violin plot for pN/pS
 
+
 class MakeDiversityPlots:
 
     sample_dir = ""
+    ref_dir = ""
     ref = ""
     plot_dir = ""
 
     aa_df = None
     protein_df = None
+    gene_anno_df = None
 
-    def __init__(self, sample_dir, ref):
+    def __init__(self, sample_dir, ref_dir, ref):
 
         self.sample_dir = sample_dir
+        self.ref_dir = ref_dir
         self.ref = ref
 
         if os.name == 'nt':
@@ -84,13 +90,42 @@ class MakeDiversityPlots:
 
         return pd.concat(age_sets)
 
+    def read_gene_annotation(self, ref):
+
+        gene_anno_file_name = self.ref_dir + self.dir_sep + "{ref}_gene_list.txt".format(ref=ref)
+
+        anno_df = pd.read_csv(gene_anno_file_name
+                              ,   sep='\t'
+                              ,   header=None
+                              ,   usecols=[0, 1, 2, 3, 10]
+                              ,   names=["Protein", "gene_fam", "gene_fam_annot", "region", "Annotation"]
+                              )
+        anno_df["ref"] = ref
+
+        return anno_df
+
     def read_files(self):
 
         logging.debug("start reading tables")
 
         self.aa_df = self.read_and_concat_measures("codon_entropy", self.ref)
 
+        self.gene_anno_df = self.read_gene_annotation(self.ref)
+
         logging.debug("end reading tables")
+
+    def merge_files(self):
+
+        data = self.protein_df
+
+        # add annotation, e.g. region
+        merge_df = data.merge(self.gene_anno_df
+                              , left_on=data.protein
+                              , right_on=self.gene_anno_df.Protein
+                              , how='left').drop(["key_0", "Protein", "ref_y"], axis=1)
+        merge_df.rename(columns={"ref_x": "ref"}, inplace=True)
+
+        self.protein_df = merge_df
 
     def create_plot_dir(self):
 
@@ -136,6 +171,41 @@ class MakeDiversityPlots:
 
         title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
         self.plot_measure_for_age_categories(self.protein_df, "entropy", "protein", title)
+
+    def make_violin_plots(self):
+        self.make_violin_plot("log10_pN_pS", "log10(pN/pS)")
+        self.make_violin_plot("entropy", "entropy")
+        self.make_violin_plot("snp_density", "SNP density")
+
+    def make_violin_plot(self, measure, measure_label):
+        # you may want to download the new results from the server
+        data = self.protein_df
+        data.loc[data.region == "assembly", "region"] = "assembly.rest"
+
+        hue_order = ["B", "4M", "12M", "M", "all"]
+        if measure != "log10_pN_pS":
+            hue_order.remove("B")   # for SNP density and entropy we remove the B (baby): not enough data
+
+        plt.figure(figsize=(12, 6))
+        ax = sns.violinplot(x="region", y=measure,
+                            hue="age_cat",
+                            data=data, palette="muted",
+                            inner="stick",
+                            order=["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest"],
+                            hue_order=hue_order
+                            )
+        title = self.ref + ": every stick is info from mapped reads from all samples in age category for one gene"
+
+        ax.set(xlabel='functional region', ylabel=measure_label)
+
+        plt.title(title)
+
+        filename="{}{}{measure}_violin_plots_{ref}.svg".format(
+            self.plot_dir, self.dir_sep, measure=measure, ref=self.ref)
+
+        # plt.show()
+        plt.savefig(filename)
+        plt.clf()
 
     def plot_measure_for_age_categories(self, data, measure, level, title):
 
@@ -212,9 +282,14 @@ class MakeDiversityPlots:
 
         self.aggregate_on_protein_level()
 
+        # we merge after aggregation because we only need annotation on Protein level
+        self.merge_files()
+
         self.create_plot_dir()
 
         self.make_plots()
+
+        self.make_violin_plots()
 
         self.write_measures()
 
@@ -225,6 +300,9 @@ def do_analysis(args_in):
 
     parser.add_argument("-d", "--sample_dir", dest="sample_dir",
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
+
+    parser.add_argument("-rd", "--ref_dir", dest="ref_dir",
+                        help="directory reference genomes", metavar="[ref_dir]", required=True)
 
     parser.add_argument("-r", "--ref", dest="ref",
                         help="reference genome id", metavar="[ref]", required=False)
@@ -242,7 +320,7 @@ def do_analysis(args_in):
         print("run analysis on all reference genomes")
         args.ref = "all"
 
-    make = MakeDiversityPlots(args.sample_dir, args.ref)
+    make = MakeDiversityPlots(args.sample_dir, args.ref_dir, args.ref)
 
     make.do_analysis()
 
@@ -254,17 +332,18 @@ def do_analysis(args_in):
 
 # TODO for testing, do not use in production
 sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
+ref_dir = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
 
 # # or run one sample, or a list of
-# # ref = "crassphage_refseq"
+ref = "crassphage_refseq"
 # ref = "hvcf_a6_ms_4"
-# # ref = "sib1_ms_5"
-#
-# do_analysis(["-d", sample_dir, "-r", ref])
+# ref = "sib1_ms_5"
+
+do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 
 # refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
 # for ref in refs:
 #     do_analysis(["-d", sample_dir, "-r", ref])
 
-do_analysis(["-d", sample_dir, "-a"])
+# do_analysis(["-d", sample_dir, "-a"])
