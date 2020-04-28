@@ -5,10 +5,18 @@ import pandas as pd
 from scipy.stats import entropy
 import sys
 
-# We will calculate per protein position (by pile up/stacking of all reads of all samples on top of each other):
-# the overall coverage,
-# the total number of possible codon types for that position (may be 1)
-# and the entropy at that position (over all samples), [not including the ref genome codon type!]
+# CalcCodonMeasures aggregates on codon level over all samples based on the DiversiTools _AA.txt file
+#
+# output will be put in CodonMeasures (later to be processed by MakeDiversiPlots)
+#
+# to do: add region in the output
+#
+# We calculate per codon (by pile up/stacking of all reads of all samples on top of each other):
+# - the overall coverage,
+# - the total number of possible codon types for that position (may be 1)
+# - and the entropy at that position (over all samples), [not including the ref genome codon type!]
+# - added #syn and #non-syn to output
+# - to do:
 # (we can later aggregate this per gene, to have less data points).
 # Goal is to have a trend line for the dependence of the entropy or SNP density (micro diversity)
 #
@@ -23,17 +31,20 @@ class CalcCodonMeasures:
 
     sample_dir = ""
     ref = ""
+    codon_table = ""
 
     aa_df = None
     sample_meta_df = None
     sample_measures_df = None
+    codon_df = None
 
     out_dir = None
 
-    def __init__(self, sample_dir, ref):
+    def __init__(self, sample_dir, ref, codon_table):
 
         self.sample_dir = sample_dir
         self.ref = ref
+        self.codon_table = codon_table
 
         if os.name == 'nt':
             self.dir_sep = "\\"
@@ -110,6 +121,12 @@ class CalcCodonMeasures:
         self.sample_measures_df = pd.read_csv(measure_file_name,
                                               sep="\t")
 
+    def read_codon_table(self):
+
+        self.codon_df = pd.read_csv(self.codon_table
+                                    ,   sep=","
+                                    ,   usecols=[0,2,3,4])
+
     def read_files(self):
 
         logging.debug("start reading tables")
@@ -118,7 +135,10 @@ class CalcCodonMeasures:
 
         self.read_sample_metadata()
 
-        self.aa_df = self.read_and_concat_measures("_AA_clean.txt", self.ref, [2,3,19,20,21,22,23,24,25])
+        self.aa_df = self.read_and_concat_measures("_AA_clean.txt", self.ref,
+                                                   [2, 3, 6, 10, 11, 19, 20, 21, 22, 23, 24, 25])
+
+        self.read_codon_table()
 
         logging.debug("end reading tables")
 
@@ -131,9 +151,12 @@ class CalcCodonMeasures:
             .drop(["key_0", "run"], axis=1)
         self.aa_df.rename(columns={'age_cat_short': 'age_cat'}, inplace=True)
 
-    def calc_and_write_measures(self):
+        self.aa_df = self.aa_df.merge(self.codon_df
+                                    , left_on=self.aa_df.RefCodon
+                                     , right_on=self.codon_df.codon
+                                     , how='left')#.reset_index()
 
-        # to do: add SNP density measures
+    def calc_and_write_measures(self):
 
         self.aa_df = self.aa_df[self.aa_df.TopCodon.notnull()]
 
@@ -192,6 +215,10 @@ class CalcCodonMeasures:
         df_return = pd.DataFrame({
             "protein": group["Protein"].head(1),
             "position": group["AAPosition"].head(1),
+            "CntSyn": group["CntSyn"].head(1),
+            "CntNonSyn": group["CntNonSyn"].head(1),
+            "syn": group["syn"].head(1),
+            "non_syn": group["non_syn"].head(1),
             "entropy": codon_entropy,
             "coverage": aa_coverage_sum,
             "nr_snps": nr_snps }
@@ -226,13 +253,17 @@ def run_calc(args_in):
     parser.add_argument("-r", "--ref", dest="ref",
                         help="reference genome id", metavar="[ref]", required=True)
 
+    parser.add_argument("-c", "--codon_table", dest="codon_table",
+                        help="file with probabilities of syn or non syn mutations",
+                        metavar="[codon_table]", required=True)
+
     args = parser.parse_args(args_in)
 
     print("Start running CalcCodonMeasures")
     print("sample_dir: " + args.sample_dir)
     print("reference genome: " + args.ref)
 
-    calc = CalcCodonMeasures(args.sample_dir, args.ref)
+    calc = CalcCodonMeasures(args.sample_dir, args.ref, args.codon_table)
 
     calc.run_calc()
 
@@ -240,10 +271,10 @@ def run_calc(args_in):
 if __name__ == "__main__":
     run_calc(sys.argv[1:])
 
-
 # TODO for testing, do not use in production
 # sample_dir = r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
+# codon_table = r"D:\17 Dutihl Lab\source\phages_pycharm\input_files\codon_syn_non_syn_probabilities.txt"
 # #
 # # or run one sample
 # ref = "crassphage_refseq"
-# run_calc(["-d", sample_dir, "-r", ref])
+# run_calc(["-d", sample_dir, "-r", ref, "-c", codon_table])
