@@ -1,5 +1,6 @@
 import argparse
 import logging
+import numpy as np
 import os
 import sys
 import pandas as pd
@@ -11,7 +12,17 @@ from scipy.stats import linregress
 # MakeDiversityPlots
 # 1. plot entropy against average coverage for genes and for all AA positions over all samples
 #   for different age categories
-# 2. determine significance of trend lines (and significance of distributions?)
+# 2. plot SNP density against average coverage for genes and for all AA positions over all samples
+#
+# 3. determine significance of trend lines (and significance of distributions?)
+#
+# to do: add annotation to self.protein_df (so after aggregation per Protein and age category)
+#        so we can compare if measures differ more per age than per region (functional category)
+# to do: pN/pS calculation for genes per age category per region
+#        requires codon bias table
+# to do: violin plot with x=region and hue=age_cat for entropy and/or SNP density
+# to do: violin plot for pN/pS
+
 class MakeDiversityPlots:
 
     sample_dir = ""
@@ -46,6 +57,7 @@ class MakeDiversityPlots:
         else:
             files = [f.path for f in os.scandir(self.plot_dir)
                      if ref in f.name
+                     and "xls" not in f.name
                      and file_name_prefix in f.name]
 
         age_sets = []
@@ -86,19 +98,38 @@ class MakeDiversityPlots:
 
     def aggregate_on_protein_level(self):
 
+        # calculate derived CntSnp = CntSyn + CntNonSyn
+        self.aa_df["CntSnp"] = self.aa_df["CntSyn"].replace(np.nan, 0) + self.aa_df["CntNonSyn"].replace(np.nan, 0)
+
+        count_snp_median = self.aa_df.CntSnp[self.aa_df["CntSnp"] != 0].median()
+        snp_pseudo_count = np.sqrt(count_snp_median) / 2
+
         self.protein_df = self.aa_df.groupby(["age_cat", "protein", "ref"]).agg(
             {'coverage': 'mean',
              'entropy': 'mean',
              'snp': 'sum',
-             'position': 'count'}).reset_index()
+             'position': 'count',
+             'syn': 'sum',
+             'non_syn': 'sum',
+             'CntNonSyn': 'sum',
+             'CntSyn': 'sum',
+             }
+        ).reset_index()
 
         self.protein_df["snp_density"] = self.protein_df.snp / self.protein_df.position
+
+        self.protein_df["syn_ratio"] = self.protein_df["syn"] / self.protein_df["non_syn"]
+
+        self.protein_df["pN_pS"] = self.protein_df["syn_ratio"] * \
+             (self.protein_df["CntNonSyn"] + snp_pseudo_count)/(self.protein_df["CntSyn"] + snp_pseudo_count)
+
+        self.protein_df["log10_pN_pS"] = np.where(self.protein_df["pN_pS"] > 0, np.log10(self.protein_df["pN_pS"]), 0)
 
     def make_plots(self):
 
         # you may want to look at the plot with data points for all AA positions but it is very messy
         # title = "{ref}: mean entropy of all position against mean coverage for that position.".format(ref=self.ref)
-        # self.plot_entropy_for_age_categories(self.aa_df, "codon", title)
+        # self.plot_entropy_for_age_categories(self.aa_df, "snp_density", "codon", title)
 
         title = "{ref}: mean SNP density of all genes against mean coverage for that gene.".format(ref=self.ref)
         self.plot_measure_for_age_categories(self.protein_df, "snp_density", "protein", title)
@@ -109,6 +140,9 @@ class MakeDiversityPlots:
     def plot_measure_for_age_categories(self, data, measure, level, title):
 
         data = data[data.age_cat != "all"]
+
+        # we exclude the age category "B" because they have a very low coverage
+        # and the trend line is messing up the figure
         data = data[data.age_cat != "B"]
         # data = data[data.coverage < 100]
         # data = data[data.ref != "crassphage_refseq"]
@@ -193,7 +227,7 @@ def do_analysis(args_in):
                         help="sample directory with samples in subfolders", metavar="[sample_dir]", required=True)
 
     parser.add_argument("-r", "--ref", dest="ref",
-                        help="reference genome id", metavar="[ref}", required=False)
+                        help="reference genome id", metavar="[ref]", required=False)
 
     parser.add_argument("-a", "--all", action="store_true", default=False,
                         help="run analysis on all ref genomes at once", required=False)
