@@ -112,6 +112,10 @@ class MakeDiversityPlots:
 
         self.gene_anno_df = self.read_gene_annotation(self.ref)
 
+        # maybe do something like this for self.ref == "all"
+        # self.gene_anno_df = self.read_all_annotations()
+
+
         logging.debug("end reading tables")
 
     def merge_files(self):
@@ -127,10 +131,6 @@ class MakeDiversityPlots:
 
         self.protein_df = merge_df
 
-    def create_plot_dir(self):
-
-        os.makedirs(self.plot_dir, exist_ok=True)
-
     def aggregate_on_protein_level(self):
 
         # calculate derived CntSnp = CntSyn + CntNonSyn
@@ -140,7 +140,7 @@ class MakeDiversityPlots:
         snp_pseudo_count = np.sqrt(count_snp_median) / 2
 
         self.protein_df = self.aa_df.groupby(["age_cat", "protein", "ref"]).agg(
-            {'coverage': 'mean',
+            {'coverage': ['mean', self.ge_10x],
              'entropy': 'mean',
              'snp': 'sum',
              'position': 'count',
@@ -151,14 +151,36 @@ class MakeDiversityPlots:
              }
         ).reset_index()
 
-        self.protein_df["snp_density"] = self.protein_df.snp / self.protein_df.position
+        self.protein_df.columns = ["_".join(x) for x in self.protein_df.columns.ravel()]
+        self.protein_df.rename(columns={'age_cat_': 'age_cat', 'protein_': 'protein', 'ref_': 'ref'}, inplace=True)
 
-        self.protein_df["syn_ratio"] = self.protein_df["syn"] / self.protein_df["non_syn"]
+        self.protein_df["snp_density"] = self.protein_df.snp_sum / self.protein_df.position_count
+
+        self.protein_df["syn_ratio"] = self.protein_df["syn_sum"] / self.protein_df["non_syn_sum"]
 
         self.protein_df["pN_pS"] = self.protein_df["syn_ratio"] * \
-             (self.protein_df["CntNonSyn"] + snp_pseudo_count)/(self.protein_df["CntSyn"] + snp_pseudo_count)
+             (self.protein_df["CntNonSyn_sum"] + snp_pseudo_count)/(self.protein_df["CntSyn_sum"] + snp_pseudo_count)
 
         self.protein_df["log10_pN_pS"] = np.where(self.protein_df["pN_pS"] > 0, np.log10(self.protein_df["pN_pS"]), 0)
+
+        self.protein_df["breadth_10x"] = self.protein_df["coverage_ge_10x"] / self.protein_df["position_count"]
+
+    @staticmethod
+    def ge_10x(coverage):
+        return coverage[coverage.ge(10)].count().astype(int)
+
+    def filter_on_gene_breadth(self):
+
+        data = self.protein_df
+
+        # we want 95% of the codons of every gene to have a depth coverage of 10x
+        data = data[data.breadth_10x > 0.95]
+
+        return data
+
+    def create_plot_dir(self):
+
+        os.makedirs(self.plot_dir, exist_ok=True)
 
     def make_plots(self):
 
@@ -170,11 +192,11 @@ class MakeDiversityPlots:
         self.plot_measure_for_age_categories(self.protein_df, "snp_density", "protein", title)
 
         title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
-        self.plot_measure_for_age_categories(self.protein_df, "entropy", "protein", title)
+        self.plot_measure_for_age_categories(self.protein_df, "entropy_mean", "protein", title)
 
     def make_violin_plots(self):
         self.make_violin_plot("log10_pN_pS", "log10(pN/pS)")
-        self.make_violin_plot("entropy", "entropy")
+        self.make_violin_plot("entropy_mean", "entropy")
         self.make_violin_plot("snp_density", "SNP density")
 
     def make_violin_plot(self, measure, measure_label):
@@ -182,9 +204,8 @@ class MakeDiversityPlots:
         data = self.protein_df
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
-        hue_order = ["B", "4M", "12M", "M", "all"]
-        if measure != "log10_pN_pS":
-            hue_order.remove("B")   # for SNP density and entropy we remove the B (baby): not enough data
+        # we might as well remove the B (4 days old baby, no 95% 10x)
+        hue_order = ["4M", "12M", "M"]
 
         plt.figure(figsize=(12, 6))
         ax = sns.violinplot(x="region", y=measure,
@@ -220,7 +241,7 @@ class MakeDiversityPlots:
         # you can filter out data points below a certain coverage:
         # data = data[data.coverage > 250]
 
-        g0 = sns.lmplot(x="coverage", y=measure,
+        g0 = sns.lmplot(x="coverage_mean", y=measure,
                         hue="age_cat",
                         data=data,
                         height=5, aspect=1.5)
@@ -263,8 +284,12 @@ class MakeDiversityPlots:
 
             data_age = data[data.age_cat == age_cat]
 
-            x_data = data_age.coverage
-            y_data = data_age.entropy
+            if level == "protein":
+                x_data = data_age.coverage_mean
+                y_data = data_age.entropy_mean
+            else:
+                x_data = data_age.coverage
+                y_data = data_age.entropy
 
             slope, intercept, r_value, p_value, std_err = linregress(x=x_data, y=y_data)
 
@@ -284,6 +309,8 @@ class MakeDiversityPlots:
 
         # we merge after aggregation because we only need annotation on Protein level
         self.merge_files()
+
+        self.protein_df = self.filter_on_gene_breadth()
 
         self.create_plot_dir()
 
@@ -345,5 +372,4 @@ do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
 # for ref in refs:
 #     do_analysis(["-d", sample_dir, "-r", ref])
-
-# do_analysis(["-d", sample_dir, "-a"])
+# do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
