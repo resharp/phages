@@ -88,7 +88,7 @@ class MakeDiversityPlots:
 
             age_sets.append(measure_df)
 
-        return pd.concat(age_sets)
+        return pd.concat(age_sets, sort=False)
 
     def read_gene_annotation(self, ref):
 
@@ -104,17 +104,39 @@ class MakeDiversityPlots:
 
         return anno_df
 
+    def read_all_annotations(self):
+
+        files = [f.path for f in os.scandir(self.ref_dir) if not f.is_dir() and "_gene_list.txt" in f.name]
+
+        anno_list = []
+
+        for file in files:
+
+            # to do: we might also use pvogs as gene fam to group on
+            anno_df = pd.read_csv(file
+                                  , sep='\t'
+                                  , header=None
+                                  , usecols=[0, 1, 2, 3, 10]
+                                  , names=["Protein", "gene_fam", "gene_fam_annot", "region", "Annotation"]
+                                  , skiprows=1
+                                  )
+            ref = file.split(self.dir_sep)[-1].replace("_gene_list.txt", "")
+            anno_df["ref"] = ref
+
+            anno_list.append(anno_df)
+
+        return pd.concat(anno_list, sort=False)
+
     def read_files(self):
 
         logging.debug("start reading tables")
 
         self.aa_df = self.read_and_concat_measures("codon_entropy", self.ref)
 
-        self.gene_anno_df = self.read_gene_annotation(self.ref)
-
-        # maybe do something like this for self.ref == "all"
-        # self.gene_anno_df = self.read_all_annotations()
-
+        if self.ref == "all":
+            self.gene_anno_df = self.read_all_annotations()
+        else:
+            self.gene_anno_df = self.read_gene_annotation(self.ref)
 
         logging.debug("end reading tables")
 
@@ -204,7 +226,7 @@ class MakeDiversityPlots:
         data = self.protein_df
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
-        # we might as well remove the B (4 days old baby, no 95% 10x)
+        # we might as well remove the B (4 days old baby, no 95% 10x for all genera)
         hue_order = ["4M", "12M", "M"]
 
         plt.figure(figsize=(12, 6))
@@ -366,10 +388,10 @@ ref = "crassphage_refseq"
 # ref = "hvcf_a6_ms_4"
 # ref = "sib1_ms_5"
 
-do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
+# do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 
 # refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
 # for ref in refs:
 #     do_analysis(["-d", sample_dir, "-r", ref])
-# do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
+do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
