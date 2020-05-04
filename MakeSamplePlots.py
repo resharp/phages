@@ -30,9 +30,14 @@ class MakeSamplePlots:
     ref_meta_df = None
     sample_measures_df = None
     merge_df = None
-    genus_sorted_df = None
+    genus_df = None
 
     genus_palette = {}
+
+    age_cat_palette = {}
+    age_cat_short_palette = {}
+
+    genus_order = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
     filter = ""
 
@@ -178,9 +183,9 @@ class MakeSamplePlots:
 
         figure_name = "{}{}sample_plots.totals.mapped.genus.pdf".format(self.plot_dir, self.dir_sep)
 
-        ax = sns.barplot(self.genus_sorted_df.genus, self.genus_sorted_df.mapped_sum, log=True
-                    , order=self.genus_sorted_df.genus
-                    , palette=self.genus_palette)
+        ax = sns.barplot(self.genus_df.genus, self.genus_df.mapped_sum, log=True
+                         , order=self.genus_order
+                         , palette=self.genus_palette)
         ax.set(xlabel='crAss-like genus', ylabel='total # of reads mapped')
 
         plt.title("total reads mapped for genera")
@@ -213,23 +218,15 @@ class MakeSamplePlots:
         df.columns = ["_".join(x) for x in df.columns.ravel()]
         df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
 
-        self.genus_sorted_df = df.sort_values('mapped_sum', ascending=False)
-
-    @staticmethod # note: breadth is a pandas series, ge means greater or equal than
-    def ge_1_perc(breadth):
-        return breadth[breadth.ge(0.01)].count().astype(int)
+        self.genus_df = df
 
     @staticmethod
     def ge_5_perc(breadth):
         return breadth[breadth.ge(0.05)].count().astype(int)
 
     @staticmethod
-    def ge_20_perc(breadth):
-        return breadth[breadth.ge(0.2)].count().astype(int)
-
-    @staticmethod
-    def ge_80_perc(breadth):
-        return breadth[breadth.ge(0.8)].count().astype(int)
+    def ge_50_perc(breadth):
+        return breadth[breadth.ge(0.5)].count().astype(int)
 
     @staticmethod
     def ge_95_perc(breadth):
@@ -241,24 +238,23 @@ class MakeSamplePlots:
         # so we want to show
         counts_df = self.merge_df.groupby(["ref", "genus"]).agg(
             {
-                "breadth_1x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
-                "breadth_10x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
-                "breadth_50x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc],
-                "breadth_100x": [self.ge_1_perc, self.ge_5_perc, self.ge_20_perc, self.ge_80_perc, self.ge_95_perc]
+                "breadth_1x": [self.ge_5_perc, self.ge_50_perc, self.ge_95_perc],
+                "breadth_10x": [self.ge_5_perc, self.ge_50_perc, self.ge_95_perc],
+                "breadth_50x": [self.ge_5_perc, self.ge_50_perc, self.ge_95_perc]
             }
         ).reset_index()
 
         counts_df.columns = ["_".join(x) for x in counts_df.columns.ravel()]
         counts_df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
 
-        depths = ["1x", "10x", "50x", "100x"]
-        percentages = [1, 5, 20, 80, 95]
+        depths = ["1x", "10x", "50x"]
+        percentages = [5, 50, 95]
         for depth in depths:
             for perc in percentages:
                 ax = sns.barplot(x=counts_df.genus,
                                  y=counts_df["breadth_{depth}_ge_{perc}_perc".format(depth=depth, perc=perc)],
                                  palette=self.genus_palette,
-                                 order=self.genus_sorted_df.genus
+                                 order=self.genus_order
                                  )
 
                 ax.set(xlabel='crAss-like genus', ylabel='#of samples with breadth > {perc}% for {depth}'.
@@ -286,6 +282,28 @@ class MakeSamplePlots:
 
         self.merge_df = merge_df.sort_values("age_cat")
 
+    def build_color_palette_for_ages(self):
+        # If you would like to extend manually on the palette colors and copy color codes see:
+        # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
+        # check color codes: https://www.color-hex.com/color/00d7ff
+
+        light_blue = "#00D7FF"
+        dark_blue = "#023EFF"
+        purple = "#8B2BE2"
+        red = "#E8000B"
+
+        bright_4 = [light_blue, dark_blue, purple, red]
+
+        self.age_cat_palette["1. baby"] = light_blue
+        self.age_cat_palette["2. 4 months"] = dark_blue
+        self.age_cat_palette["3. 12 months"] = purple
+        self.age_cat_palette["4. mother"] = red
+
+        self.age_cat_short_palette["B"] = light_blue
+        self.age_cat_short_palette["4M"] = dark_blue
+        self.age_cat_short_palette["12M"] = purple
+        self.age_cat_short_palette["M"] = red
+
     @staticmethod
     def family(row):
         return row.sample_name.split("_")[0]
@@ -308,7 +326,7 @@ class MakeSamplePlots:
 
         # to do: we should filter out the reads that are not above the 5% 1x threshold
         sns.catplot(x="genus", y="log10_mapped", kind=kind, data=self.merge_df, hue="age_cat",
-                    palette=sns.color_palette("coolwarm", 4), order=self.genus_sorted_df.genus)
+                    palette=self.age_cat_palette, order=self.genus_order)
 
         plt.title("log abundance of normalized mapped reads for one ref genome per genus")
 
@@ -362,7 +380,7 @@ class MakeSamplePlots:
 
         kind = "swarm"
         sns.catplot(x="age_cat_short", y=measure, kind=kind, data=data,
-                    palette=sns.color_palette("coolwarm", 4)
+                    palette=self.age_cat_short_palette
                     , order=["B", "4M", "12M", "M"]
                     )
 
@@ -381,6 +399,7 @@ class MakeSamplePlots:
         data = data[data.age_cat_short != "B"]
 
         g0 = sns.lmplot(x="mean_depth_mean", y=measure,
+                        palette=self.age_cat_short_palette,
                         hue="age_cat_short",
                         data=data,
                         height=5,
@@ -434,7 +453,7 @@ class MakeSamplePlots:
         data = data[data.genus == genus]
 
         # s_plot = sns.scatterplot(x=x_value, y=y_value, data=data, hue="genus_")
-        s_plot = sns.scatterplot(x=x_value, y=y_value, data=data)
+        s_plot = sns.scatterplot(x=x_value, y=y_value, data=data, palette=self.age_cat_palette)
         s_plot.set(xscale="log")
         s_plot.set(yscale="log")
 
@@ -462,6 +481,8 @@ class MakeSamplePlots:
         self.merge_files()
 
         self.prepare_data()
+
+        self.build_color_palette_for_ages()
 
         self.make_filter_sample_plots()
 
