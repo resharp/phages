@@ -38,8 +38,9 @@ class MakeDiversityPlots:
     protein_df = None
     gene_anno_df = None
 
-    def __init__(self, sample_dir, ref_dir, ref):
+    age_cat_palette = {}
 
+    def __init__(self, sample_dir, ref_dir, ref):
 
         self.sample_dir = sample_dir
         self.ref_dir = ref_dir
@@ -86,7 +87,7 @@ class MakeDiversityPlots:
                 logging.error("Could not read file {file}".format(file=file))
                 raise
 
-            measure_df["age_cat"] = age_cat
+            measure_df["age_cat_short"] = age_cat
             measure_df["ref"] = ref
 
             age_sets.append(measure_df)
@@ -135,6 +136,13 @@ class MakeDiversityPlots:
         logging.debug("start reading tables")
 
         self.aa_df = self.read_and_concat_measures("codon_entropy", self.ref)
+
+        self.aa_df["age_cat"] = ""
+        self.aa_df.loc[self.aa_df.age_cat_short == "B", "age_cat"] = "baby"
+        self.aa_df.loc[self.aa_df.age_cat_short == "4M", "age_cat"] = "4 months"
+        self.aa_df.loc[self.aa_df.age_cat_short == "12M", "age_cat"] = "12 months"
+        self.aa_df.loc[self.aa_df.age_cat_short == "M", "age_cat"] = "mother"
+        self.aa_df.loc[self.aa_df.age_cat_short == "all", "age_cat"] = "all"
 
         if self.ref == "all":
             self.gene_anno_df = self.read_all_annotations()
@@ -207,6 +215,23 @@ class MakeDiversityPlots:
 
         os.makedirs(self.plot_dir, exist_ok=True)
 
+    def build_color_palette_for_ages(self):
+        # If you would like to extend manually on the palette colors and copy color codes see:
+        # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
+        # check color codes: https://www.color-hex.com/color/00d7ff
+
+        green = "#138D75"
+        dark_blue = "#2E86C1"
+        purple = "#884EA0"
+        orange = "#F39C12"
+
+        bright_4 = [green, dark_blue, purple, orange]
+
+        self.age_cat_palette["baby"] = green
+        self.age_cat_palette["4 months"] = dark_blue
+        self.age_cat_palette["12 months"] = purple
+        self.age_cat_palette["mother"] = orange
+
     def make_plots(self):
 
         # you may want to look at the plot with data points for all AA positions but it is very messy
@@ -230,15 +255,16 @@ class MakeDiversityPlots:
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
         # we might as well remove the B (4 days old baby, no 95% 10x for all genera)
-        hue_order = ["4M", "12M", "M"]
+        hue_order = ["4 months", "12 months", "mother"]
 
         plt.figure(figsize=(12, 6))
         ax = sns.violinplot(x="region", y=measure,
                             hue="age_cat",
-                            data=data, palette="muted",
+                            data=data,
                             inner="stick",
                             order=["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest"],
-                            hue_order=hue_order
+                            hue_order=hue_order,
+                            palette=self.age_cat_palette
                             )
         title = self.ref + ": every stick is info from mapped reads from all samples in age category for one gene"
 
@@ -268,8 +294,11 @@ class MakeDiversityPlots:
 
         g0 = sns.lmplot(x="coverage_mean", y=measure,
                         hue="age_cat",
+                        hue_order=["4 months", "12 months", "mother"],
                         data=data,
-                        height=5, aspect=1.5)
+                        height=5, aspect=1.5,
+                        palette=self.age_cat_palette)
+
         if self.ref == "crassphage_refseq" or self.ref == "all":
             # we want these pictures to be in the same format for comparing
             plt.xlim(-1000, 13000)
@@ -338,6 +367,8 @@ class MakeDiversityPlots:
         self.protein_df = self.filter_on_gene_breadth()
 
         self.create_plot_dir()
+
+        self.build_color_palette_for_ages()
 
         self.make_plots()
 
