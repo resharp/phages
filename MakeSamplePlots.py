@@ -35,7 +35,6 @@ class MakeSamplePlots:
     genus_palette = {}
 
     age_cat_palette = {}
-    age_cat_short_palette = {}
 
     genus_order = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
@@ -275,10 +274,10 @@ class MakeSamplePlots:
         merge_df["age_cat_short"] = merge_df.apply(self.age_category, axis=1)
         merge_df["family"] = merge_df.apply(self.family, axis=1)
 
-        merge_df.loc[merge_df.age_cat_short == "B", "age_cat"] = "1. baby"
-        merge_df.loc[merge_df.age_cat_short == "4M", "age_cat"] = "2. 4 months"
-        merge_df.loc[merge_df.age_cat_short == "12M", "age_cat"] = "3. 12 months"
-        merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "4. mother"
+        merge_df.loc[merge_df.age_cat_short == "B", "age_cat"] = "baby"
+        merge_df.loc[merge_df.age_cat_short == "4M", "age_cat"] = "4 months"
+        merge_df.loc[merge_df.age_cat_short == "12M", "age_cat"] = "12 months"
+        merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "mother"
 
         self.merge_df = merge_df.sort_values("age_cat")
 
@@ -287,22 +286,17 @@ class MakeSamplePlots:
         # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
         # check color codes: https://www.color-hex.com/color/00d7ff
 
-        light_blue = "#00D7FF"
-        dark_blue = "#023EFF"
-        purple = "#8B2BE2"
-        red = "#E8000B"
+        green = "#138D75"
+        dark_blue = "#2E86C1"
+        purple = "#884EA0"
+        orange = "#F39C12"
 
-        bright_4 = [light_blue, dark_blue, purple, red]
+        bright_4 = [green, dark_blue, purple, orange]
 
-        self.age_cat_palette["1. baby"] = light_blue
-        self.age_cat_palette["2. 4 months"] = dark_blue
-        self.age_cat_palette["3. 12 months"] = purple
-        self.age_cat_palette["4. mother"] = red
-
-        self.age_cat_short_palette["B"] = light_blue
-        self.age_cat_short_palette["4M"] = dark_blue
-        self.age_cat_short_palette["12M"] = purple
-        self.age_cat_short_palette["M"] = red
+        self.age_cat_palette["baby"] = green
+        self.age_cat_palette["4 months"] = dark_blue
+        self.age_cat_palette["12 months"] = purple
+        self.age_cat_palette["mother"] = orange
 
     @staticmethod
     def family(row):
@@ -379,9 +373,9 @@ class MakeSamplePlots:
     def make_cat_plot_for_age_categories(self, data, measure, title):
 
         kind = "swarm"
-        sns.catplot(x="age_cat_short", y=measure, kind=kind, data=data,
-                    palette=self.age_cat_short_palette
-                    , order=["B", "4M", "12M", "M"]
+        sns.catplot(x="age_cat", y=measure, kind=kind, data=data,
+                    palette=self.age_cat_palette
+                    , order=["baby", "4 months", "12 months", "mother"]
                     )
 
         plt.title("{title} ({filter})".format(
@@ -399,8 +393,9 @@ class MakeSamplePlots:
         data = data[data.age_cat_short != "B"]
 
         g0 = sns.lmplot(x="mean_depth_mean", y=measure,
-                        palette=self.age_cat_short_palette,
-                        hue="age_cat_short",
+                        palette=self.age_cat_palette,
+                        hue="age_cat",
+                        hue_order=["4 months", "12 months", "mother"],
                         data=data,
                         height=5,
                         aspect=1.5)
@@ -433,12 +428,6 @@ class MakeSamplePlots:
 
         # extra derived field: hue does not work with strings that only contains numbers
         df_families["genus_"] = "genus_" + df_families["genus"]
-
-        # rename because order does not matter anymore
-        df_families.rename(columns={'1. baby': 'baby',
-                                    '2. 4 months': '4 months',
-                                    '3. 12 months': '12 months',
-                                    '4. mother': 'mother'}, inplace=True)
 
         genera = df_families.genus.unique().tolist()
 
