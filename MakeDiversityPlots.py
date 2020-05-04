@@ -32,12 +32,14 @@ class MakeDiversityPlots:
     ref_dir = ""
     ref = ""
     plot_dir = ""
+    input_dir = ""
 
     aa_df = None
     protein_df = None
     gene_anno_df = None
 
     def __init__(self, sample_dir, ref_dir, ref):
+
 
         self.sample_dir = sample_dir
         self.ref_dir = ref_dir
@@ -48,7 +50,8 @@ class MakeDiversityPlots:
         else:
             self.dir_sep = "/"
 
-        self.plot_dir = self.sample_dir + self.dir_sep + "CodonMeasures"
+        self.input_dir = self.sample_dir + self.dir_sep + "CodonMeasures"
+        self.plot_dir = self.sample_dir + self.dir_sep + "CodonDiversityPlots"
 
         logging.basicConfig(filename=self.sample_dir + self.dir_sep + 'MakeDiversityPlots.log', filemode='w',
                             format='%(asctime)s - %(levelname)s - %(message)s',
@@ -57,11 +60,11 @@ class MakeDiversityPlots:
     def read_and_concat_measures(self, file_name_prefix, ref=None):
 
         if ref == "all":
-            files = [f.path for f in os.scandir(self.plot_dir)
+            files = [f.path for f in os.scandir(self.input_dir)
                      if file_name_prefix in f.name
                      and "xls" not in f.name]
         else:
-            files = [f.path for f in os.scandir(self.plot_dir)
+            files = [f.path for f in os.scandir(self.input_dir)
                      if ref in f.name
                      and "xls" not in f.name
                      and file_name_prefix in f.name]
@@ -393,5 +396,5 @@ ref = "crassphage_refseq"
 # refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
 # for ref in refs:
-#     do_analysis(["-d", sample_dir, "-r", ref])
+#     do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
