@@ -224,6 +224,12 @@ class MakeGenePlots:
 
         # assert(len(data) == len(merge_df))
 
+        merge_df = merge_df.merge(self.ref_meta_df
+                                  , left_on=merge_df.ref
+                                  , right_on=self.ref_meta_df.ref
+                                  , how='inner').drop(["key_0", "ref_y"], axis=1)
+        merge_df.rename(columns={"ref_x": "ref"}, inplace=True)
+
         data = merge_df.merge(filtered_sample,
                               left_on=[merge_df["sample"], merge_df.ref],
                               right_on=[filtered_sample["sample"], filtered_sample.ref],
@@ -721,11 +727,19 @@ class MakeGenePlots:
 
         df = pd.DataFrame(columns=("percentage", "ref", "count", "fraction"), data=row_list)
 
-        self.make_cumulation_plot_for_breadth_thresholds(df, refs, "fraction")
+        df = df.merge(self.ref_meta_df
+                     , left_on=df.ref
+                     , right_on=self.ref_meta_df.ref
+                     , how='inner').drop(["key_0", "ref_y"], axis=1)
+        df.rename(columns={"ref_x": "ref"}, inplace=True)
 
-        self.make_cumulation_plot_for_breadth_thresholds(df, refs, "count")
+        genera = np.sort(data.genus.unique())
 
-    def make_cumulation_plot_for_breadth_thresholds(self, df, refs, measure):
+        self.make_cumulation_plot_for_breadth_thresholds(df, genera, "fraction")
+
+        self.make_cumulation_plot_for_breadth_thresholds(df, genera, "count")
+
+    def make_cumulation_plot_for_breadth_thresholds(self, df, genera, measure):
 
         fig, ax = plt.subplots(figsize=(12, 5))
 
@@ -734,22 +748,22 @@ class MakeGenePlots:
         else:
             max_y = df[measure].max() + 0.01
 
-        for ref in refs:
+        for genus in genera:
 
-            df_ref = df[df.ref == ref]
+            df_genus = df[df.genus == genus]
 
             plt.xlim(0, 1)
             plt.ylim(0, max_y)
 
-            sns.lineplot(x=df_ref.percentage,
-                         y=df_ref[measure],
-                         color=self.ref_palette[ref],
+            sns.lineplot(x=df_genus.percentage,
+                         y=df_genus[measure],
+                         color=self.genus_palette[genus],
                          ax=ax)
 
         title = "{measure} of data points for genes for {depth}x breadth thresholds".format(
             depth=self.threshold_depth, measure=measure)
         plt.title(title)
-        ax.legend(refs, facecolor='w')
+        ax.legend(genera, facecolor='w', title="genus")
         ax.set(xlabel='breadth percentage for gene'
                , ylabel='{measure} of gene data points used'.format(measure=measure))
 
@@ -921,9 +935,10 @@ class MakeGenePlots:
     def plot_family_and_ref(self, data, kind, ds_order):
 
         # this plots uses a color code based on the ref ids
-        ax = sns.catplot(x="gene_fam_annot", y="log10_pN/pS", kind=kind, data=data, hue="ref",
-                    palette=self.ref_palette,
-                    order=ds_order, height=3.5, aspect=3)
+        ax = sns.catplot(x="gene_fam_annot", y="log10_pN/pS", kind=kind, data=data,
+                         hue="genus",
+                         palette=self.genus_palette,
+                         order=ds_order, height=3.5, aspect=3)
 
         ax.set(xlabel='gene family', ylabel='log10(pN/pS)')
         title ="top 5 most conserved gene families {breadth}/{depth}x".format(
