@@ -319,10 +319,18 @@ class MakeSamplePlots:
     def make_category_plot(self, kind):
 
         # to do: we should filter out the reads that are not above the 5% 1x threshold
-        sns.catplot(x="genus", y="log10_mapped", kind=kind, data=self.merge_df, hue="age_cat",
-                    palette=self.age_cat_palette, order=self.genus_order)
+        sns.catplot(x="genus",
+                    y="log10_mapped",
+                    kind=kind,
+                    data=self.merge_df,
+                    hue="age_cat",
+                    hue_order=["baby", "4 months", "12 months", "mother"],
+                    palette=self.age_cat_palette, order=self.genus_order
+                    )
+
 
         plt.title("log abundance of normalized mapped reads for one ref genome per genus")
+        plt.ylabel("log10 (norm. mapped reads)")
 
         figure_name = "{}{}sample_plots.categories.mapped.genus.{kind}.pdf".format(self.plot_dir, self.dir_sep,
                                                                                    kind=kind)
