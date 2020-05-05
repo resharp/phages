@@ -80,6 +80,8 @@ class MakeGenePlots:
 
         self.sample_breadth_df = self.read_and_concat_measures("_sample_measures.txt", ref)
 
+        self.read_ref_metadata()
+
         logging.info("finished reading tables")
 
     def read_and_concat_measures(self, file_name_ext, ref=None):
@@ -475,13 +477,16 @@ class MakeGenePlots:
                   format(ref=self.ref, title=title, depth=self.threshold_depth, breadth=self.threshold_breadth))
 
         sns.set(style="ticks")
-
+        region_order = ["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest", "other"]
         # to do: We get a warning on the percentile calculations (implicit in box plot) for the infinite values
         # we should probably recalculate p_N/p_S with a pseudocount
-        sns.boxplot(x=measure, y=agg_field, data=data,
-                    whis="range", color="white")
+        ax = sns.boxplot(x=measure, y=agg_field, data=data,
+                    order=region_order, color="white",
+                    whis="range")
+        ax.xaxis.grid(True)
 
         sns.swarmplot(x=measure, y=agg_field, data=data,
+                      order=region_order,
                       size=2, color=".3", linewidth=0)
 
         figure_name = "{}{}gene_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
@@ -489,6 +494,7 @@ class MakeGenePlots:
             measure=measure.replace("/", "_"), title=title.replace(" ", "_").replace("/", "_"),
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
+        plt.xlabel("log10(pN/pS)")
 
         plt.savefig(figure_name)
         plt.clf()
@@ -499,7 +505,9 @@ class MakeGenePlots:
         mw_data = pd.DataFrame(columns=['region1', 'region2', 'measure'])
         mw_data.set_index(['region1', 'region2'])
 
-        regions1 = data.region.unique()
+        # regions1 = data.region.unique()
+        # force order of regions identical to the region plot
+        regions1 = ["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest", "other"]
         regions2 = regions1.copy()
         for region1 in regions1:
             for region2 in regions2:
@@ -1006,6 +1014,8 @@ class MakeGenePlots:
 
         self.plot_gene_families()
 
+        self.create_region_plot()
+
     # endregion
     # ---------------------------------------------------------------------------
 
@@ -1071,8 +1081,8 @@ if __name__ == "__main__":
 # ref="crassphage_refseq"
 # # ref="sib1_ms_5"
 # rd = r"D:\17 Dutihl Lab\source\phages_scripts\mgx\ref_seqs"
-# do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
+# # do_analysis(["-d", sample_dir, "-rd", rd, "-r", ref, "-ns", "2", "-td", "10", "-tb", "0.95"])
 #
 # # gene family analyis (with -f option)
 # # to do: write the results of all data points to a text file
-# # do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.95"])
+# do_analysis(["-d", sample_dir, "-rd", rd, "-f", "-td", "10", "-tb", "0.95"])
