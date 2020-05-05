@@ -245,12 +245,54 @@ class MakeDiversityPlots:
         self.plot_measure_for_age_categories(self.protein_df, "entropy_mean", "protein", title)
 
     def make_violin_plots(self):
-        self.make_violin_plot("log10_pN_pS", "log10(pN/pS)")
-        self.make_violin_plot("entropy_mean", "entropy")
-        self.make_violin_plot("snp_density", "SNP density")
+        self.make_violin_plots_measure("log10_pN_pS", "log10(pN/pS)")
+        self.make_violin_plots_measure("entropy_mean", "entropy")
+        self.make_violin_plots_measure("snp_density", "SNP density")
 
-    def make_violin_plot(self, measure, measure_label):
-        # you may want to download the new results from the server
+    def make_violin_plots_measure(self, measure, measure_label):
+
+        self.make_violin_plot(measure, measure_label, "age_cat", "age category")
+        self.make_violin_plot(measure, measure_label, "region", "functional region")
+        self.make_region_age_violin_plot(measure, measure_label)
+
+    def make_violin_plot(self, measure, measure_label, agg_measure, agg_measure_label):
+
+        data = self.protein_df
+        data.loc[data.region == "assembly", "region"] = "assembly.rest"
+
+        plt.figure(figsize=(12, 6))
+
+        if agg_measure == "age_cat":
+            # we might as well remove the B (4 days old baby, no 95% 10x for all genera)
+            order = ["4 months", "12 months", "mother"]
+            palette=self.age_cat_palette
+            ax = sns.violinplot(x=agg_measure, y=measure,
+                                data=data,
+                                order=order,
+                                palette=palette
+                                )
+        if agg_measure == "region":
+            order = ["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest"]
+            ax = sns.violinplot(x=agg_measure, y=measure,
+                                data=data,
+                                order=order,
+                                inner="stick",
+                                color="white"
+                                )
+        title = self.ref + ": every stick is info from mapped reads from all samples in age category for one gene"
+
+        ax.set(xlabel=agg_measure_label, ylabel=measure_label)
+
+        plt.title(title)
+
+        filename="{}{}{measure}_{agg_measure}_violin_plots_{ref}.svg".format(
+            self.plot_dir, self.dir_sep, agg_measure=agg_measure, measure=measure, ref=self.ref)
+
+        plt.savefig(filename)
+        plt.clf()
+
+    def make_region_age_violin_plot(self, measure, measure_label):
+
         data = self.protein_df
         data.loc[data.region == "assembly", "region"] = "assembly.rest"
 
@@ -272,10 +314,9 @@ class MakeDiversityPlots:
 
         plt.title(title)
 
-        filename="{}{}{measure}_violin_plots_{ref}.svg".format(
+        filename="{}{}{measure}_region_age_violin_plots_{ref}.svg".format(
             self.plot_dir, self.dir_sep, measure=measure, ref=self.ref)
 
-        # plt.show()
         plt.savefig(filename)
         plt.clf()
 
@@ -422,7 +463,7 @@ ref = "crassphage_refseq"
 # ref = "hvcf_a6_ms_4"
 # ref = "sib1_ms_5"
 
-# do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
+do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 
 # refs = ["crassphage_refseq", "sib1_ms_5", "err975045_s_1", "inf125_s_2", "srr4295175_ms_5",
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
