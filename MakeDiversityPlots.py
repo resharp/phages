@@ -272,6 +272,7 @@ class MakeDiversityPlots:
                                 palette=palette
                                 )
         if agg_measure == "region":
+            data = data[data.age_cat != "all"]
             order = ["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest"]
             ax = sns.violinplot(x=agg_measure, y=measure,
                                 data=data,
