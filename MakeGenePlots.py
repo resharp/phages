@@ -1,3 +1,4 @@
+
 import argparse
 import logging
 import os
@@ -12,7 +13,7 @@ import sys
 # create multiple heat maps
 #   1st with the log pN/pS values
 #   2nd with the missing genes (just 0/1 for clarity)
-#   3rd distribution plots [integration over structural genes or other categories]
+#   3rd distribution plotsa [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
 #   we aggregate them to gene level (aggregation over all samples)
@@ -51,6 +52,8 @@ class MakeGenePlots:
     threshold_breadth = 0
 
     all_scores_df = None
+
+    genus_order = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
     def __init__(self, sample_dir, ref_dir, ref, threshold_depth, threshold_breadth):
 
@@ -296,19 +299,20 @@ class MakeGenePlots:
     # based on self.gene_sample_df
     # that can be further aggregated into self.gene_df
     # and then merged with self.gene_annotation.df for annotation
-    def score_genes_and_output_ordered_genes_to_file(self):
+    def score_genes_and_write_ordered_genes_to_file(self):
 
-        self.gene_df = self.filtered_gene_sample_df.groupby("Protein").agg(
+        self.gene_df = self.filtered_gene_sample_df.groupby(["Protein", "genus"]).agg(
             {
                 'log10_pN/pS': ["mean", "count", "std"]
             ,   'entropy_mean': ["mean", "count"]
             }).reset_index()
 
         self.gene_df.columns = ["_".join(x) for x in self.gene_df.columns.ravel()]
-        self.gene_df.rename(columns={'Protein_': 'Protein'}, inplace=True)
+        self.gene_df.rename(columns={'Protein_': 'Protein', 'genus_': 'genus'}, inplace=True)
 
         self.gene_df = self.gene_df.sort_values(by='log10_pN/pS_mean', ascending=False)
 
+        # to do add genus here (it is easier to merge gene_anno_df with self.ref_meta_df earlier?
         merge_df = self.gene_df.merge(self.gene_anno_df
                                       , left_on=self.gene_df.Protein
                                       , right_on=self.gene_anno_df.Protein
@@ -319,7 +323,7 @@ class MakeGenePlots:
 
         self.gene_df = merge_df
 
-        merge_df = merge_df[['Protein', 'gene_fam',
+        merge_df = merge_df[['Protein', 'genus', 'gene_fam',
                              'log10_pN/pS_mean', 'log10_pN/pS_std', 'log10_pN/pS_count', 'region', 'Annotation']]
 
         filename = self.plot_dir + self.dir_sep + "crassphage_pN_pS_values.{breadth}.{depth}x.txt".format(
@@ -629,7 +633,7 @@ class MakeGenePlots:
 
         self.create_filtered_heat_maps()
 
-        self.score_genes_and_output_ordered_genes_to_file()
+        self.score_genes_and_write_ordered_genes_to_file()
 
         self.score_samples()
 
@@ -741,6 +745,7 @@ class MakeGenePlots:
                      , how='inner').drop(["key_0", "ref_y"], axis=1)
         df.rename(columns={"ref_x": "ref"}, inplace=True)
 
+        # to do: change in order of genus_order now 1 and 10
         genera = np.sort(data.genus.unique())
 
         self.make_cumulation_plot_for_breadth_thresholds(df, genera, "fraction")
@@ -775,10 +780,6 @@ class MakeGenePlots:
         ax.set(xlabel='breadth percentage for gene'
                , ylabel='{measure} of gene data points used'.format(measure=measure))
 
-        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
-        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
-        os.makedirs(self.plot_dir, exist_ok=True)
-
         figure_name = "{}{}family_plots.gene_usage.{measure}.{title}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep,
             title=title.replace(" ", "_"),
@@ -788,6 +789,17 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
         plt.clf()
+
+    def create_family_plot_dir(self):
+        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
+
+        # write to .local folder when run locally (not on server)
+        if os.name == 'nt':
+            suffix = suffix + ".local"
+
+        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
+
+        os.makedirs(self.plot_dir, exist_ok=True)
 
     def filter_gene_sample_on_gene_coverage_for_all_refs(self):
 
@@ -946,6 +958,7 @@ class MakeGenePlots:
         ax = sns.catplot(x="gene_fam_annot", y="log10_pN/pS", kind=kind, data=data,
                          hue="genus",
                          palette=self.genus_palette,
+                         hue_order=self.genus_order,
                          order=ds_order, height=3.5, aspect=3)
 
         ax.set(xlabel='gene family', ylabel='log10(pN/pS)')
@@ -982,10 +995,6 @@ class MakeGenePlots:
 
         ax.set(xlabel='log10(pN/pS)', ylabel='gene family')
 
-        suffix = "{breadth}.{depth}x".format(depth=self.threshold_depth, breadth=self.threshold_breadth)
-        self.plot_dir = self.sample_dir + self.dir_sep + "FamilyPlots" + self.dir_sep + suffix
-
-        os.makedirs(self.plot_dir, exist_ok=True)
         figure_name = "{}{}family_plots.{}.box_plot.{measure}.{title}.{breadth}.{depth}x.svg".format(
             self.plot_dir, self.dir_sep, agg_field,
             measure=measure.replace("/", "_"), title=title.replace(" ", "_"),
@@ -1001,6 +1010,8 @@ class MakeGenePlots:
         self.read_all_files_for_family()
 
         self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
+
+        self.create_family_plot_dir()
 
         self.breadth_statistics_for_choosing_threshold()
 
