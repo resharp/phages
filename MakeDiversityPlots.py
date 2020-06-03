@@ -17,13 +17,13 @@ from scipy.stats import linregress
 # 3. determine significance of trend lines (and significance of distributions?)
 #
 #
-# to do: add gene filter 50% or 95% 10x
-# to do: add annotation to self.protein_df (so after aggregation per Protein and age category)
+# done : add gene filter 50% or 95% 10x
+# done : add annotation to self.protein_df (so after aggregation per Protein and age category)
 #        so we can compare if measures differ more per age than per region (functional category)
-# to do: pN/pS calculation for genes per age category per region
+# done : pN/pS calculation for genes per age category per region
 #        requires codon bias table
-# to do: violin plot with x=region and hue=age_cat for entropy and/or SNP density
-# to do: violin plot for pN/pS
+# done : violin plot with x=region and hue=age_cat for entropy and/or SNP density
+# done : violin plot for pN/pS
 
 
 class MakeDiversityPlots:
@@ -151,6 +151,10 @@ class MakeDiversityPlots:
 
         logging.debug("end reading tables")
 
+    def create_plot_dir(self):
+
+        os.makedirs(self.plot_dir, exist_ok=True)
+
     def merge_files(self):
 
         data = self.protein_df
@@ -202,6 +206,11 @@ class MakeDiversityPlots:
     def ge_10x(coverage):
         return coverage[coverage.ge(10)].count().astype(int)
 
+    def write_sup_table(self):
+        filename = "{}{}across_sample_gene_measures_table.txt".format(
+            self.plot_dir, self.dir_sep)
+        self.protein_df.to_csv(path_or_buf=filename, sep='\t', index=False)
+
     def filter_on_gene_breadth(self):
 
         data = self.protein_df
@@ -211,9 +220,10 @@ class MakeDiversityPlots:
 
         return data
 
-    def create_plot_dir(self):
-
-        os.makedirs(self.plot_dir, exist_ok=True)
+    def write_filtered_sup_table(self):
+        filename = "{}{}filtered_across_sample_gene_measures_table.txt".format(
+            self.plot_dir, self.dir_sep)
+        self.protein_df.to_csv(path_or_buf=filename, sep='\t', index=False)
 
     def build_color_palette_for_ages(self):
         # If you would like to extend manually on the palette colors and copy color codes see:
@@ -272,7 +282,7 @@ class MakeDiversityPlots:
                                 palette=palette
                                 )
         if agg_measure == "region":
-            data = data[data.age_cat != "all"]
+            data = data[data.age_cat == "all"]
             order = ["replication", "transcription", "assembly.capsid", "assembly.tail", "assembly.rest"]
             ax = sns.violinplot(x=agg_measure, y=measure,
                                 data=data,
@@ -360,16 +370,16 @@ class MakeDiversityPlots:
         plt.savefig(filename)
         plt.clf()
 
-    def write_measures(self):
+    def write_linear_regressions(self):
         # https://stackoverflow.com/questions/33490833/display-regression-equation-in-seaborn-regplot
 
         # write measures for the slope of the lines for different age categories
         # and determine if they are significantly different
-        self.write_measures_for_level(self.protein_df, "protein")
+        self.write_linear_regression_for_level(self.protein_df, "protein")
 
-        self.write_measures_for_level(self.aa_df, "codon")
+        self.write_linear_regression_for_level(self.aa_df, "codon")
 
-    def write_measures_for_level(self, data, level):
+    def write_linear_regression_for_level(self, data, level):
 
         df_lr = pd.DataFrame(columns=('ref', 'slope', 'intercept', 'r_value', 'p_value', 'std_err'))
         df_lr.index.name = 'age_cat'
@@ -401,14 +411,18 @@ class MakeDiversityPlots:
 
         self.read_files()
 
+        self.create_plot_dir()
+
         self.aggregate_on_protein_level()
 
         # we merge after aggregation because we only need annotation on Protein level
         self.merge_files()
 
+        self.write_sup_table()
+
         self.protein_df = self.filter_on_gene_breadth()
 
-        self.create_plot_dir()
+        self.write_filtered_sup_table()
 
         self.build_color_palette_for_ages()
 
@@ -416,8 +430,7 @@ class MakeDiversityPlots:
 
         self.make_violin_plots()
 
-        self.write_measures()
-
+        self.write_linear_regressions()
 
 def do_analysis(args_in):
 
