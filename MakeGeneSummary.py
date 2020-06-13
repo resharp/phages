@@ -24,6 +24,8 @@ class MakeGeneSummary:
 
     gene_df = None
     genus1_stats_df = None
+    fam_sample_df = None
+    fam_df = None
 
     def __init__(self, sample_dir):
 
@@ -61,6 +63,16 @@ class MakeGeneSummary:
                               )
         return df
 
+    def read_fam_sample_stats(self):
+
+        stats_filename = self.sample_dir + self.dir_sep + "gene_fam_sample.0.95.10x.txt"
+
+        df = pd.read_csv(stats_filename
+                              ,   sep='\t'
+                              ,   usecols=[1, 27, 33, 36, 41, 42, 45, 46]
+                              )
+        return df
+
     def read_files(self):
 
         logging.debug("start reading tables")
@@ -69,7 +81,20 @@ class MakeGeneSummary:
 
         self.genus1_stats_df = self.read_genus1_stats()
 
+        self.fam_sample_df = self.read_fam_sample_stats()
+
         logging.debug("end reading tables")
+
+    def aggregate_gene_fam(self):
+
+        data = self.fam_sample_df
+
+        data = data[["gene_fam", "log10_pN/pS_mean", "log10_pN/pS_count"]]
+
+        # results are already aggregated, drop duplicates and be left with a single line per gene family
+        df = data.drop_duplicates()
+
+        self.fam_df = df
 
     def merge_files(self):
 
@@ -79,7 +104,16 @@ class MakeGeneSummary:
                               , left_on=data.Protein
                               , right_on=self.genus1_stats_df.Protein
                               , how='left').drop(["key_0", "Protein_y"], axis=1)
-        merge_df.rename(columns={"Protein_x": "protein"}, inplace=True)
+        merge_df.rename(columns={"Protein_x": "protein",
+                                 "log10_pN/pS_mean": "log10_pN/pS_mean_gene",
+                                 "log10_pN/pS_count": "gene_in_samples"}, inplace=True)
+        merge_df = merge_df.merge(self.fam_df
+                                  , left_on=merge_df.gene_fam
+                                  , right_on=self.fam_df.gene_fam
+                                  , how='left').drop(["key_0", "gene_fam_y"], axis=1)
+        merge_df.rename(columns={"gene_fam_x": "gene_fam",
+                                 "log10_pN/pS_mean": "log10_pN/pS_mean_fam",
+                                 "log10_pN/pS_count": "fam_in_samples"}, inplace=True)
 
         self.gene_df = merge_df
 
@@ -92,6 +126,8 @@ class MakeGeneSummary:
     def do_analysis(self):
 
         self.read_files()
+
+        self.aggregate_gene_fam()
 
         self.merge_files()
 
