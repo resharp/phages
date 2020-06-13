@@ -16,7 +16,9 @@ import seaborn as sns;sns.set()
 # T3	across_sample_gene_measures_table.txt
 # hmm_hits	hmm_hits for copy numbers (first add genus?)
 # 	ids_ref_genomes.txt
-
+# for this we need a complete list with protein -> genus (not just for which we have measures)
+# in the family analysis we read all separate
+# with read_all_annotations
 
 class MakeGeneSummary:
 
@@ -26,6 +28,10 @@ class MakeGeneSummary:
     genus1_stats_df = None
     fam_sample_df = None
     fam_df = None
+    hhm_hits_df = None
+    anno_df = None
+    ref_meta_df = None
+    pangenome_matrix_df = None
 
     def __init__(self, sample_dir):
 
@@ -73,6 +79,84 @@ class MakeGeneSummary:
                               )
         return df
 
+    def read_hmm_hits(self):
+
+        filename = self.sample_dir + self.dir_sep + "hmm_hits.tsv"
+
+        df = pd.read_csv(filename
+                         ,  sep='\t'
+                         ,  names=["gene","gene_fam", "e_value"]
+                         ,  usecols=[0,1,2]
+                         )
+        logging.debug("Nr of HMM hits: " + str(len(df)))
+
+        df = df[df.e_value < 1e-10]
+
+        logging.debug("Nr of HMM hits with e-value < 1e-10: " + str(len(df)))
+
+        # to do: return to 1e-30 threshold?
+        # df = df[df.e_value < 1e-30]
+        # logging.debug("Nr of HMM hits with e-value < 1e-30: " + str(len(df)))
+
+        return df
+
+    def read_all_annotations(self):
+
+        ref_dir = self.sample_dir + self.dir_sep + "gene_list"
+
+        files = [f.path for f in os.scandir(ref_dir) if not f.is_dir() and "_gene_list.txt" in f.name]
+
+        anno_list = []
+
+        for file in files:
+
+            anno_df = pd.read_csv(file
+                                  , sep='\t'
+                                  , header=None
+                                  , usecols=[0]
+                                  , names=["Protein"]
+                                  , skiprows=1
+                                  )
+            ref = file.split(self.dir_sep)[-1].replace("_gene_list.txt", "")
+            anno_df["ref"] = ref
+
+            anno_list.append(anno_df)
+
+        df = pd.concat(anno_list)
+
+        self.read_ref_metadata()
+
+        ref_file_name = self.sample_dir + self.dir_sep + "ref_genome_ids.txt"
+
+        df_ref = pd.read_csv(ref_file_name
+                             , sep="\t"
+                             , header=None
+                             , comment="#"
+                             , names=["ref", "genus"])
+        df_ref.genus = df_ref.apply(self.shorten_genus, axis=1)
+
+        df = df.merge(df_ref,
+                      left_on=df.ref,
+                      right_on=df_ref.ref,
+                      how="inner").drop(["key_0", "ref_x", "ref_y"], axis=1)
+        return df
+
+    def read_ref_metadata(self):
+
+        ref_file_name = self.sample_dir + self.dir_sep + "ref_genome_ids.txt"
+
+        self.ref_meta_df = pd.read_csv(ref_file_name
+                                       , sep="\t"
+                                       , header=None
+                                       , comment="#"
+                                       , names=["ref", "genus"]
+                                       )
+        self.ref_meta_df.genus = self.ref_meta_df.apply(self.shorten_genus, axis=1)
+
+    @staticmethod
+    def shorten_genus(row):
+        return row.genus.replace("genus_", "")
+
     def read_files(self):
 
         logging.debug("start reading tables")
@@ -82,6 +166,10 @@ class MakeGeneSummary:
         self.genus1_stats_df = self.read_genus1_stats()
 
         self.fam_sample_df = self.read_fam_sample_stats()
+
+        self.hhm_hits_df = self.read_hmm_hits()
+
+        self.anno_df = self.read_all_annotations()
 
         logging.debug("end reading tables")
 
@@ -95,6 +183,42 @@ class MakeGeneSummary:
         df = data.drop_duplicates()
 
         self.fam_df = df
+
+    def do_pangenome_analysis(self):
+
+        data = self.hhm_hits_df
+
+        # first add genus
+        data = data.merge(self.anno_df,
+                          left_on=data.gene,
+                          right_on=self.anno_df.Protein,
+                          how="inner").drop(["key_0", "Protein"], axis=1)
+
+        #now first aggregate on a combination of gene_fam en genus and count the number of proteins
+        df = data.groupby(["gene_fam", "genus"]).agg(
+            {'gene': 'count',
+            }
+        ).reset_index()
+
+        df.rename(columns={'gene': 'genus_count'}, inplace=True)
+
+        # to do: first aggregate on gene_fam and count nr genera
+        # count_df = df.groupby(["gene_fam"]).agg(
+        #     {'gene', 'count'}
+        # ).reset_index()
+
+        df = df.set_index(["gene_fam", "genus"])
+
+        # manual correction: we know that genus 4 has 1 portal protein
+        df.loc["portal", "4"]
+
+        # convert from multi-index to matrix
+        df = df.unstack()
+        df.columns = ["_".join(x) for x in df.columns.ravel()]
+
+        self.pangenome_matrix_df = df
+
+        dummy = True
 
     def merge_files(self):
 
@@ -128,6 +252,8 @@ class MakeGeneSummary:
         self.read_files()
 
         self.aggregate_gene_fam()
+
+        self.do_pangenome_analysis()
 
         self.merge_files()
 
