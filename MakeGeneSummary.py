@@ -17,11 +17,13 @@ import seaborn as sns;sns.set()
 # hmm_hits	hmm_hits for copy numbers (first add genus?)
 # 	ids_ref_genomes.txt
 
+
 class MakeGeneSummary:
 
     sample_dir = ""
 
     gene_df = None
+    genus1_stats_df = None
 
     def __init__(self, sample_dir):
 
@@ -43,12 +45,21 @@ class MakeGeneSummary:
         anno_df = pd.read_csv(gene_anno_file_name
                               ,   sep='\t'
                               ,   header=None
-                              ,   usecols=[0, 1, 2, 3, 10]
-                              ,   names=["Protein", "gene_fam", "gene_fam_annot", "region", "Annotation"]
+                              ,   skiprows=[0]
+                              ,   usecols=[0, 1, 3, 10]
+                              ,   names=["Protein", "gene_fam", "region", "Annotation"]
                               )
-        anno_df["ref"] = ref
-
         return anno_df
+
+    def read_genus1_stats(self):
+
+        stats_filename = self.sample_dir + self.dir_sep + "crassphage_pN_pS_values.0.95.10x.txt"
+
+        df = pd.read_csv(stats_filename
+                              ,   sep='\t'
+                              ,   usecols=[0, 3, 4, 5]
+                              )
+        return df
 
     def read_files(self):
 
@@ -56,19 +67,19 @@ class MakeGeneSummary:
 
         self.gene_df = self.read_gene_annotation("crassphage_refseq")
 
+        self.genus1_stats_df = self.read_genus1_stats()
+
         logging.debug("end reading tables")
 
     def merge_files(self):
 
         data = self.gene_df
 
-        merge_df = data
-        # add annotation, e.g. region
-        # merge_df = data.merge(self.gene_anno_df
-        #                       , left_on=data.protein
-        #                       , right_on=self.gene_anno_df.Protein
-        #                       , how='left').drop(["key_0", "Protein", "ref_y"], axis=1)
-        # merge_df.rename(columns={"ref_x": "ref"}, inplace=True)
+        merge_df = data.merge(self.genus1_stats_df
+                              , left_on=data.Protein
+                              , right_on=self.genus1_stats_df.Protein
+                              , how='left').drop(["key_0", "Protein_y"], axis=1)
+        merge_df.rename(columns={"Protein_x": "protein"}, inplace=True)
 
         self.gene_df = merge_df
 
