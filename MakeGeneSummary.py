@@ -32,6 +32,8 @@ class MakeGeneSummary:
     anno_df = None
     ref_meta_df = None
     pangenome_matrix_df = None
+    across_sample_measures_df = None
+    fam_snp_density_df = None
 
     def __init__(self, sample_dir):
 
@@ -77,6 +79,19 @@ class MakeGeneSummary:
                               ,   sep='\t'
                               ,   usecols=[1, 27, 33, 36, 41, 42, 45, 46]
                               )
+        return df
+
+    def read_across_sample_measures(self):
+
+        stats_filename = self.sample_dir + self.dir_sep + "filtered_across_sample_gene_measures_table.txt"
+
+        df = pd.read_csv(stats_filename
+                              ,   sep='\t'
+                              ,   usecols=[0,1,12,17]
+                              )
+
+        df = df[df.age_cat == "all"]
+
         return df
 
     def read_hmm_hits(self):
@@ -169,6 +184,8 @@ class MakeGeneSummary:
 
         self.fam_sample_df = self.read_fam_sample_stats()
 
+        self.across_sample_measures_df = self.read_across_sample_measures()
+
         self.hhm_hits_df = self.read_hmm_hits()
 
         self.anno_df = self.read_all_annotations()
@@ -185,6 +202,14 @@ class MakeGeneSummary:
         df = data.drop_duplicates()
 
         self.fam_df = df
+
+        df_snp = self.across_sample_measures_df.groupby(["gene_fam"]).agg(
+            {'snp_density': 'mean'}
+        ).reset_index()
+
+        df_snp.rename(columns={'snp_density': 'snp_density_fam'}, inplace=True)
+
+        self.fam_snp_density_df = df_snp
 
     def do_pangenome_analysis(self):
 
@@ -216,7 +241,7 @@ class MakeGeneSummary:
         # convert from multi-index to matrix
         df = df.unstack()
         df.columns = ["_".join(x) for x in df.columns.ravel()]
-        df.columns = [ x.replace("genus_count_","") for x in df.columns ]
+        df.columns = [x.replace("genus_count_","") for x in df.columns]
         df = df.reset_index()
 
         df = count_df.merge(df,
@@ -246,11 +271,25 @@ class MakeGeneSummary:
                                  "log10_pN/pS_mean": "log10_pN/pS_mean_fam",
                                  "log10_pN/pS_count": "fam_in_samples"}, inplace=True)
 
+        # add SNP densities on both gene and family level
+        df_protein_snp_density = self.across_sample_measures_df[["protein", "snp_density"]]
+        merge_df = merge_df.merge(df_protein_snp_density
+                                  , left_on=merge_df.protein
+                                  , right_on=df_protein_snp_density.protein
+                                  , how="left").drop(["key_0", "protein_y"], axis=1)
+        merge_df.rename(columns={"protein_x": "protein",
+                                 "snp_density": "snp_density_gene"}, inplace=True)
+
+        merge_df = merge_df.merge(self.fam_snp_density_df
+                                  , left_on=merge_df.gene_fam
+                                  , right_on=self.fam_snp_density_df.gene_fam
+                                  , how="left").drop(["key_0", "gene_fam_y"], axis=1)
+        merge_df.rename(columns={"gene_fam_x": "gene_fam"}, inplace=True)
+
         merge_df = merge_df.merge(self.pangenome_matrix_df
                                   , left_on=merge_df.gene_fam
                                   , right_on=self.pangenome_matrix_df.gene_fam
                                   , how='left').drop(["key_0", "gene_fam_y"], axis=1)
-
         merge_df.rename(columns={"gene_fam_x": "gene_fam"}, inplace=True)
 
         self.gene_df = merge_df
