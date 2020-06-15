@@ -194,31 +194,35 @@ class MakeGeneSummary:
                           right_on=self.anno_df.Protein,
                           how="inner").drop(["key_0", "Protein"], axis=1)
 
-        #now first aggregate on a combination of gene_fam en genus and count the number of proteins
+        # aggregate on a combination of gene_fam en genus and count the number of proteins
         df = data.groupby(["gene_fam", "genus"]).agg(
-            {'gene': 'count',
-            }
+            {'gene': 'count'}
         ).reset_index()
 
         df.rename(columns={'gene': 'genus_count'}, inplace=True)
 
         # to do: first aggregate on gene_fam and count nr genera
-        # count_df = df.groupby(["gene_fam"]).agg(
-        #     {'gene', 'count'}
-        # ).reset_index()
+        count_df = df.groupby(["gene_fam"]).agg(
+            {'genus_count': 'count'}
+        ).reset_index()
 
         df = df.set_index(["gene_fam", "genus"])
 
         # manual correction: we know that genus 4 has 1 portal protein
-        df.loc["portal", "4"]
+        df.loc["portal", "4"] = 1
 
         # convert from multi-index to matrix
         df = df.unstack()
         df.columns = ["_".join(x) for x in df.columns.ravel()]
+        df = df.reset_index()
 
-        self.pangenome_matrix_df = df
+        df = count_df.merge(df,
+                            left_on=count_df.gene_fam,
+                            right_on=df.gene_fam,
+                            how='inner').drop(["key_0","gene_fam_y"], axis=1)
+        df.rename(columns={'gene_fam_x': 'gene_fam'}, inplace=True)
 
-        dummy = True
+        return df
 
     def merge_files(self):
 
@@ -239,6 +243,13 @@ class MakeGeneSummary:
                                  "log10_pN/pS_mean": "log10_pN/pS_mean_fam",
                                  "log10_pN/pS_count": "fam_in_samples"}, inplace=True)
 
+        merge_df = merge_df.merge(self.pangenome_matrix_df
+                                  , left_on=merge_df.gene_fam
+                                  , right_on=self.pangenome_matrix_df.gene_fam
+                                  , how='left').drop(["key_0", "gene_fam_y"], axis=1)
+
+        merge_df.rename(columns={"gene_fam_x": "gene_fam"}, inplace=True)
+
         self.gene_df = merge_df
 
     def write_summary(self):
@@ -253,7 +264,7 @@ class MakeGeneSummary:
 
         self.aggregate_gene_fam()
 
-        self.do_pangenome_analysis()
+        self.pangenome_matrix_df = self.do_pangenome_analysis()
 
         self.merge_files()
 
