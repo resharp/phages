@@ -85,7 +85,7 @@ class MakeGeneSummary:
 
         df = pd.read_csv(filename
                          ,  sep='\t'
-                         ,  names=["gene","gene_fam", "e_value"]
+                         ,  names=["gene", "gene_fam", "e_value"]
                          ,  usecols=[0,1,2]
                          )
         logging.debug("Nr of HMM hits: " + str(len(df)))
@@ -138,7 +138,9 @@ class MakeGeneSummary:
         df = df.merge(df_ref,
                       left_on=df.ref,
                       right_on=df_ref.ref,
-                      how="inner").drop(["key_0", "ref_x", "ref_y"], axis=1)
+                      how="inner").drop(["key_0", "ref_x"], axis=1)
+
+        df.rename(columns={'ref_y': 'ref'}, inplace=True)
         return df
 
     def read_ref_metadata(self):
@@ -195,7 +197,7 @@ class MakeGeneSummary:
                           how="inner").drop(["key_0", "Protein"], axis=1)
 
         # aggregate on a combination of gene_fam en genus and count the number of proteins
-        df = data.groupby(["gene_fam", "genus"]).agg(
+        df = data.groupby(["gene_fam", "ref"]).agg(
             {'gene': 'count'}
         ).reset_index()
 
@@ -206,14 +208,15 @@ class MakeGeneSummary:
             {'genus_count': 'count'}
         ).reset_index()
 
-        df = df.set_index(["gene_fam", "genus"])
+        df = df.set_index(["gene_fam", "ref"])
 
         # manual correction: we know that genus 4 has 1 portal protein
-        df.loc["portal", "4"] = 1
+        df.loc["portal", "srr4295175_ms_5"] = 1
 
         # convert from multi-index to matrix
         df = df.unstack()
         df.columns = ["_".join(x) for x in df.columns.ravel()]
+        df.columns = [ x.replace("genus_count_","") for x in df.columns ]
         df = df.reset_index()
 
         df = count_df.merge(df,
