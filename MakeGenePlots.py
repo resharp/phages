@@ -13,11 +13,11 @@ import sys
 # create multiple heat maps
 #   1st with the log pN/pS values
 #   2nd with the missing genes (just 0/1 for clarity)
-#   3rd distribution plotsa [integration over structural genes or other categories]
+#   3rd distribution plots [integration over structural genes or other categories]
 #
 #   all sample_gene measures are in small separate files
 #   we aggregate them to gene level (aggregation over all samples)
-#   therefore we load all files and merge them into one DataFrame
+#   therefore we load all files into one DataFrame
 #
 # masking missing values in heat maps:
 # https://github.com/mwaskom/seaborn/issues/375
@@ -299,6 +299,8 @@ class MakeGenePlots:
     # based on self.gene_sample_df
     # that can be further aggregated into self.gene_df
     # and then merged with self.gene_annotation.df for annotation
+    #
+    # to do: also write results on sample level
     def score_genes_and_write_ordered_genes_to_file(self):
 
         self.gene_df = self.filtered_gene_sample_df.groupby(["Protein", "genus"]).agg(
@@ -330,6 +332,49 @@ class MakeGenePlots:
             depth=self.threshold_depth, breadth=self.threshold_breadth
         )
         merge_df.to_csv(filename, index=False, sep='\t')
+
+    def mw_significance_individual_genes(self):
+
+        # Add comparison between the log10_pN/pS_mean values for individual proteins
+        # for this test we have to use the distributions
+        # those are in self.filtered_gene_sample_df (before the grouping takes place)
+        data = self.filtered_gene_sample_df
+
+        mw_data = pd.DataFrame(columns=['gene1', 'gene2', 'measure'])
+        mw_data.set_index(['gene1', 'gene2'])
+
+        measure = "log10_pN/pS"
+
+        # we would like to sort the genes in data in the order of self.gene_df
+        # e.g. to easily compare the top 10 genes with the bottom 10 genes
+        # https://stackoverflow.com/questions/45576800/how-to-sort-dataframe-based-on-a-column-in-another-dataframe-in-pandas
+        genes1 = pd.DataFrame(data.Protein.unique(), columns=["Protein"])
+        genes1 = genes1.set_index("Protein")
+        # genes1['dummy'] = 1 # for "View as DataFrame in debugger"
+        genes1 = genes1.reindex(index=self.gene_df['Protein'])
+        genes1 = genes1.reset_index()["Protein"]
+
+        genes2 = genes1.copy()
+
+        for gene1 in genes1:
+            for gene2 in genes2:
+                if gene1 == gene2:
+                    mw_data.loc[gene1, gene2] = 1
+                else:
+                    ds_1 = data[data.Protein == gene1][measure]
+                    ds_2 = data[data.Protein == gene2][measure]
+
+                    mw_result = mannwhitneyu(x=ds_1, y=ds_2)
+                    mw_data.loc[gene1, gene2] = mw_result.pvalue
+
+        mw_data = mw_data.drop(['gene1', 'gene2', 'measure'], axis=1)
+
+        mw_file_name = "{}{}gene_plots.compare_individual_genes.{measure}.{breadth}.{depth}x.txt".format(
+            self.plot_dir, self.dir_sep,
+            measure=measure.replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        mw_data.to_csv(path_or_buf=mw_file_name, sep='\t')
 
     @staticmethod
     def label(row):
@@ -502,9 +547,9 @@ class MakeGenePlots:
 
         plt.savefig(figure_name)
         plt.clf()
-        self.make_mw_heat_maps(data, measure)
+        self.make_mw_heat_maps_for_region(data, measure)
 
-    def make_mw_heat_maps(self, data, measure):
+    def make_mw_heat_maps_for_region(self, data, measure):
 
         mw_data = pd.DataFrame(columns=['region1', 'region2', 'measure'])
         mw_data.set_index(['region1', 'region2'])
@@ -525,6 +570,13 @@ class MakeGenePlots:
                     mw_data.loc[region1, region2] = mw_result.pvalue
 
         mw_data = mw_data.drop(['region1', 'region2', 'measure'], axis=1)
+
+        mw_file_name = "{}{}gene_plots.compare_regions.{measure}.{breadth}.{depth}x.txt".format(
+            self.plot_dir, self.dir_sep,
+            measure=measure.replace("/", "_"),
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        mw_data.to_csv(path_or_buf=mw_file_name, sep='\t')
 
         # trick to only show the significant values
         mw_data_significant = mw_data[mw_data < 0.05]
@@ -634,6 +686,8 @@ class MakeGenePlots:
         self.create_filtered_heat_maps()
 
         self.score_genes_and_write_ordered_genes_to_file()
+
+        self.mw_significance_individual_genes()
 
         self.score_samples()
 

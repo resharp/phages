@@ -1,13 +1,28 @@
 
 # determinants of evolutionary dynamics in crAss-like phages
 contains Python code.  
-It should be merged with Linux bash scripts, which call the Python programs and 
+It could be merged with Linux bash scripts, which call the Python programs and 
 therefore also contain clear examples on parameter usage
 
 to do
 - installation instructions
 - all Conda dependencies (refer to generated file by Conda?)
 - image with complete oversight of pipeline(s) 
+
+# Summary 
+
+
+# Examples 
+
+Accompanying shell scripts are in the mgx folder of:
+https://github.com/resharp/phages_scripts
+
+# Installation
+this repository can be best put in local directory:
+
+source/phages
+
+the shell scripts reference the Python scripts by this path 
 
 # Annotation pipeline
 
@@ -42,8 +57,14 @@ to do
         -	pN/pS
     
 - MakeGenePlots.py
-    - aggregation, statistical testing and plotting
-    - uses matplotlib.pyplot and seaborn
+    - aggregates the output of CalcDiversiMeasures.py. It contains
+        - analysis for one reference genome 
+        - analysis for gene families based on multiple ref genomes
+    - statistical testing and plotting
+    - (uses matplotlib.pyplot and seaborn)
+
+creates figures 2 and 3 of main text      
+and supplementary tables [to do]        
         
 # measures calculated across samples
 - CalcCodonMeasures.py
@@ -55,6 +76,9 @@ to do
         -	the entropy 
         -	pN/pS   
 
+creates figure 4 of main text  
+and supplementary tables [to do]
+
 *help files*
 - MakeSynProbabilitiesTable.py
     - creates table for codon bias
@@ -63,6 +87,8 @@ to do
 # macro diversity
 - MakeSamplePlots.py
     - calculated  macro diversity per sample based on the sample/genome mapping statistics produced by samtools idxstats (Li 2009) on the bam files
+
+creates figure 1 and 5 of main text
 
 # Summary 
 - MakeGeneSummary.py
