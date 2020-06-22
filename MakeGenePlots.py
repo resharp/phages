@@ -247,11 +247,18 @@ class MakeGenePlots:
             data = data[data[breadth_field] > self.threshold_breadth]
 
         data["label"] = data.apply(self.label, axis=1)
-        self.filtered_gene_sample_df = data
 
-        # this was the old way of filtering (when we always had enough depth in the pilot):
-        # data = data[(data.AAcoverage_perc < 1.5)]
-        # data = data[(data.AAcoverage_perc > 0.2)]
+        return data
+
+    def write_filtered_gene_sample_df(self):
+
+        data = self.filtered_gene_sample_df
+
+        file_name = "{}{}gene_plots.filtered_gene_sample.{breadth}.{depth}x.txt".format(
+            self.plot_dir, self.dir_sep,
+            depth=self.threshold_depth, breadth=self.threshold_breadth
+        )
+        data.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
     # https://seaborn.pydata.org/generated/seaborn.heatmap.html
     def create_heat_map(self, data, measure, title, add_suffix=True):
@@ -679,7 +686,9 @@ class MakeGenePlots:
 
         self.create_unfiltered_heat_maps()
 
-        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=True)
+        self.filtered_gene_sample_df = self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=True)
+
+        self.write_filtered_gene_sample_df()
 
         self.create_histograms()
 
@@ -1063,9 +1072,11 @@ class MakeGenePlots:
 
         self.read_all_files_for_family()
 
-        self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
+        self.filtered_gene_sample_df = self.filter_gene_sample_on_sample_and_gene_coverage(filter_genes=False)
 
         self.create_family_plot_dir()
+
+        self.write_filtered_gene_sample_df()
 
         self.breadth_statistics_for_choosing_threshold()
 
