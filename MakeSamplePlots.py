@@ -94,8 +94,7 @@ class MakeSamplePlots:
     def read_ref_metadata(self):
 
         # to do: also read from ref_dir
-        # and add color palettes the same way as in MakeGenePlots
-        # NB: ref_genome_ids.txt should be copied from scripts/mgx/ref_seqs
+        # NB: for now ref_genome_ids.txt should be copied from scripts/mgx/ref_seqs
         ref_file_name = self.sample_dir + self.dir_sep + "ref_genome_ids.txt"
 
         self.ref_meta_df = pd.read_csv(ref_file_name
@@ -109,6 +108,7 @@ class MakeSamplePlots:
         # to do: cleaner way to exclude this row
         self.ref_meta_df = self.ref_meta_df[self.ref_meta_df.ref != "NC_024711.1"]
 
+        # add color palettes the same way as in MakeGenePlots
         self.build_color_palette_from_ref()
 
     # use same color coding in MakeGenePlots for consistent color coding of genera and accompanying refs
@@ -168,15 +168,16 @@ class MakeSamplePlots:
                                   , how="left").drop(["key_0", "key_1", "ref_y", "sample"], axis=1)
         merge_df.rename(columns={'ref_x': 'ref'}, inplace=True)
 
-        self.merge_df = merge_df
+        return merge_df
 
     def filter_on_breadth_threshold(self):
 
         merge_df = self.merge_df
 
         breadth_threshold = 0.05
-        self.merge_df = merge_df[merge_df.breadth_1x > breadth_threshold]
         self.filter = "{perc}%/1x".format(perc=breadth_threshold*100)
+
+        return merge_df[merge_df.breadth_1x > breadth_threshold]
 
     def make_bar_plot(self):
 
@@ -206,7 +207,7 @@ class MakeSamplePlots:
 
         self.merge_df["genus"] = self.merge_df.apply(self.shorten_genus, axis=1)
 
-        self.sort_genus_according_to_abundance()
+        return self.merge_df
 
     def sort_genus_according_to_abundance(self):
 
@@ -217,7 +218,7 @@ class MakeSamplePlots:
         df.columns = ["_".join(x) for x in df.columns.ravel()]
         df.rename(columns={'genus_': 'genus', "ref_": "ref"}, inplace=True)
 
-        self.genus_df = df
+        return df
 
     @staticmethod
     def ge_5_perc(breadth):
@@ -279,7 +280,46 @@ class MakeSamplePlots:
         merge_df.loc[merge_df.age_cat_short == "12M", "age_cat"] = "12 months"
         merge_df.loc[merge_df.age_cat_short == "M", "age_cat"] = "mother"
 
-        self.merge_df = merge_df.sort_values("age_cat")
+        merge_df = merge_df.sort_values("age_cat")
+
+        return merge_df
+
+    def write_sample_genera_matrix(self):
+
+        # self.merge_df now contains among others:
+        # run (= sample); age_cat (dimension of run/sample)
+        # ref, genus
+        # value: mapped_norm (normalized)
+
+        df = self.merge_df
+        df["ref_genus"] = df["ref"] + " (" + df["genus"] + ")"
+        df = df[["run", "ref_genus", "mapped_norm"]]
+        df = df.sort_values(["run","ref_genus"])
+
+        df = df.set_index(["run", "ref_genus"])
+
+        # convert from multi-index to matrix
+        df = df.unstack()
+        df.columns = ["_".join(x) for x in df.columns.ravel()]
+        df.columns = [x.replace("mapped_norm_","") for x in df.columns]
+        df = df.reset_index()
+
+        df_age = self.merge_df[["run", "age_cat"]]
+        df_age = df_age.sort_values("run")
+        df_age.reset_index()
+
+        # to do: fix this for adding the age category (somehow it results in double rows (because of multiindex?)
+        # df = df_age.merge(df
+        #                   , left_on=df_age.run
+        #                   , right_on=df.run
+        #                   , how="inner").drop(["key_0", "run_y"], axis=1)
+        #
+        # df.rename(columns={'run_x': 'sample'}, inplace=True)
+
+        file_name = "{}{}sample_genera_matrix.txt".format(
+            self.plot_dir, self.dir_sep,
+        )
+        df.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
     def build_color_palette_for_ages(self):
         # If you would like to extend manually on the palette colors and copy color codes see:
@@ -327,7 +367,6 @@ class MakeSamplePlots:
                     hue_order=["baby", "4 months", "12 months", "mother"],
                     palette=self.age_cat_palette, order=self.genus_order
                     )
-
 
         plt.title("log abundance of normalized mapped reads for one ref genome per genus")
         plt.ylabel("log10 (norm. mapped reads)")
@@ -475,19 +514,23 @@ class MakeSamplePlots:
 
         self.create_plot_dir()
 
-        self.merge_files()
+        self.merge_df = self.merge_files()
 
-        self.prepare_data()
+        self.merge_df = self.prepare_data()
+
+        self.genus_df = self.sort_genus_according_to_abundance()
 
         self.build_color_palette_for_ages()
 
         self.make_filter_sample_plots()
 
-        self.filter_on_breadth_threshold()
+        self.merge_df = self.filter_on_breadth_threshold()
 
         self.make_bar_plot()
 
-        self.prepare_specifics_for_project()
+        self.merge_df = self.prepare_specifics_for_project()
+
+        self.write_sample_genera_matrix()
 
         self.make_abundance_plots()
 
@@ -497,7 +540,6 @@ class MakeSamplePlots:
 
         if verbose:
             self.make_scatter_plots()
-
 
 def do_analysis(args_in):
 
