@@ -10,7 +10,7 @@ import seaborn as sns;sns.set()
 # collect all stats for genes and (optionally) accompanying gene families in one export file
 #
 # input files
-# T0	crassphage_refseq_gene_list
+#   	crassphage_refseq_gene_list
 # T1	gene_fam_sample.0.95.10x.txt
 # T2	crassphage_pN_pS_values.0.95.10x.txt
 # T3	across_sample_gene_measures_table.txt

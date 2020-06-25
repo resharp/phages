@@ -1,4 +1,3 @@
-
 import argparse
 import logging
 import os
@@ -10,17 +9,17 @@ from scipy.stats import mannwhitneyu
 import sys
 
 # MakeGenePlots
-# create multiple heat maps
-#   1st with the log pN/pS values
-#   2nd with the missing genes (just 0/1 for clarity)
-#   3rd distribution plots [integration over structural genes or other categories]
-#
-#   all sample_gene measures are in small separate files
-#   we aggregate them to gene level (aggregation over all samples)
-#   therefore we load all files into one DataFrame
-#
-# masking missing values in heat maps:
-# https://github.com/mwaskom/seaborn/issues/375
+#   goal: comparison of selective pressure ( pN/pS values ) for
+#       one reference genome
+#           individual genes (figure 2a)
+#           genome regions  (figure 2b, S3a)
+#       multiple reference genomes (-> multiple genera)
+#           gene families (figure 3, S4)
+#           genome regions (figure S6c, S3b)
+#   input
+#       all sample_gene measures are in small separate files
+#       we aggregate them to gene level (aggregation over all samples)
+#       therefore we load all files into one DataFrame
 
 
 class MakeGenePlots:
@@ -990,6 +989,7 @@ class MakeGenePlots:
     @staticmethod
     def get_diagonal_mask(data):
 
+        # https://github.com/mwaskom/seaborn/issues/375
         mask = np.zeros(data.shape)
         for i in range(0,len(data)):
             for j in range(0, len(data)):
