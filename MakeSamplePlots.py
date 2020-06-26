@@ -298,23 +298,19 @@ class MakeSamplePlots:
 
         df = df.set_index(["run", "ref_genus"])
 
-        # convert from multi-index to matrix
+        # convert to matrix (it stays multiindex!)
         df = df.unstack()
         df.columns = ["_".join(x) for x in df.columns.ravel()]
-        df.columns = [x.replace("mapped_norm_","") for x in df.columns]
+        df.columns = [x.replace("mapped_norm_", "") for x in df.columns]
         df = df.reset_index()
 
-        df_age = self.merge_df[["run", "age_cat"]]
-        df_age = df_age.sort_values("run")
-        df_age.reset_index()
+        df_age = self.merge_df.groupby(["run", "age_cat"]).agg({'ref': 'count'})
+        df_age = df_age.reset_index().drop(['ref'], axis=1)
 
-        # to do: fix this for adding the age category (somehow it results in double rows (because of multiindex?)
-        # df = df_age.merge(df
-        #                   , left_on=df_age.run
-        #                   , right_on=df.run
-        #                   , how="inner").drop(["key_0", "run_y"], axis=1)
-        #
-        # df.rename(columns={'run_x': 'sample'}, inplace=True)
+        df = pd.merge(df_age, df, on="run", how="inner")
+        df.rename(columns={'run': 'sample'}, inplace=True)
+
+        df = df.sort_values(["sample"])
 
         file_name = "{}{}sample_genera_matrix.txt".format(
             self.plot_dir, self.dir_sep,
@@ -540,6 +536,7 @@ class MakeSamplePlots:
 
         if verbose:
             self.make_scatter_plots()
+
 
 def do_analysis(args_in):
 
