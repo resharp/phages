@@ -284,6 +284,14 @@ class MakeSamplePlots:
 
         return merge_df
 
+    def write_mapping_statistics(self):
+
+        df = self.merge_df
+        file_name = "{}{}sample_genera_mapping_statistics.txt".format(
+            self.plot_dir, self.dir_sep,
+        )
+        df.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
     def write_sample_genera_matrix(self):
 
         # self.merge_df now contains among others:
@@ -527,16 +535,22 @@ class MakeSamplePlots:
 
         self.build_color_palette_for_ages()
 
+        # before filtering
         self.make_filter_sample_plots()
+
+        # adding specific metadata from sample name
+        self.merge_df = self.prepare_specifics_for_project()
+
+        self.write_mapping_statistics()
 
         self.merge_df = self.filter_on_breadth_threshold()
 
         self.make_bar_plot()
 
-        self.merge_df = self.prepare_specifics_for_project()
-
+        # this may so be done before filtering
         self.write_sample_genera_matrix()
 
+        # after filtering
         self.make_abundance_plots()
 
         self.make_diversity_plots()
