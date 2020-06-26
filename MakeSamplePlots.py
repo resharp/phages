@@ -304,6 +304,15 @@ class MakeSamplePlots:
         df.columns = [x.replace("mapped_norm_", "") for x in df.columns]
         df = df.reset_index()
 
+        df["total"] = df.drop('run', axis=1).sum(axis=1)
+
+        cols = list(df.columns.values)
+        new_cols = [cols[0], cols[-1]]
+        for col in cols[1:-1]:
+            new_cols.append(col)
+        df = df[new_cols]
+        df = df.round(decimals=0)
+
         df_age = self.merge_df.groupby(["run", "age_cat"]).agg({'ref': 'count'})
         df_age = df_age.reset_index().drop(['ref'], axis=1)
 
