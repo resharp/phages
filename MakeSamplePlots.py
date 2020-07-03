@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns;sns.set()
 from scipy.stats import entropy
+from scipy.stats import mannwhitneyu
+
 import sys
 
 
@@ -145,7 +147,7 @@ class MakeSamplePlots:
         merge_df = self.sample_stats_df.merge(self.sample_meta_df
                                               ,   left_on=self.sample_stats_df.run
                                               ,   right_on=self.sample_meta_df.run
-                                              ,   how="inner").drop(["key_0", "run_y"], axis=1)
+                                              ,   how="right").drop(["key_0", "run_y"], axis=1)
         merge_df.rename(columns={'run_x': 'run'}, inplace=True)
 
         assert(len(self.sample_stats_df) == len(merge_df))
@@ -165,7 +167,7 @@ class MakeSamplePlots:
                                   , left_on=[merge_df.run, merge_df.ref]
                                   # nb: sample is reserved word of pandas DataFrame
                                   , right_on=[self.sample_measures_df["sample"], self.sample_measures_df.ref]
-                                  , how="left").drop(["key_0", "key_1", "ref_y", "sample"], axis=1)
+                                  , how="outer").drop(["key_0", "key_1", "ref_y", "sample"], axis=1)
         merge_df.rename(columns={'ref_x': 'ref'}, inplace=True)
 
         return merge_df
@@ -194,6 +196,12 @@ class MakeSamplePlots:
 
     def prepare_data(self):
 
+        self.merge_df["genus"] = self.merge_df.apply(self.shorten_genus, axis=1)
+
+        return self.merge_df
+
+    def drop_zero_coverage_and_normalize_data(self):
+
         self.merge_df = self.merge_df[self.merge_df.mapped != 0]
 
         # normalize to nr mapped reads per 50 million total reads
@@ -204,8 +212,6 @@ class MakeSamplePlots:
         logging.info("nr of non-zero mappings among samples: {nr_mappings}".format(nr_mappings=nr_mappings))
 
         self.merge_df["log10_mapped"] = np.log10(self.merge_df.mapped_norm)
-
-        self.merge_df["genus"] = self.merge_df.apply(self.shorten_genus, axis=1)
 
         return self.merge_df
 
@@ -266,6 +272,84 @@ class MakeSamplePlots:
                 )
                 plt.savefig(figure_name)
                 plt.clf()
+
+    def do_statistical_analysis_on_unfiltered_data(self):
+
+        df = self.merge_df
+
+        group = df.groupby("run")
+
+        data = group.apply(self.count_nr_genera_above_threshold_and_calc_entropy)
+
+        file_name = "{}{}sample_nr_genera_and_entropy.txt".format(
+            self.plot_dir, self.dir_sep
+        )
+        data.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
+        self.calc_and_write_means(data)
+
+        self.calc_and_write_pvalues(data, "count")
+        self.calc_and_write_pvalues(data, "entropy")
+
+    @staticmethod
+    def count_nr_genera_above_threshold_and_calc_entropy(group):
+
+        df = group[["run", "genus", "breadth_1x", "mapped"]]
+        df = df[df.breadth_1x > 0.05]
+
+        count_genus = df.genus.count()
+        mapped_entropy = entropy(df.mapped, base=10)
+
+        df_return = pd.DataFrame({
+            "run": group["run"].head(1),
+            "age_cat": group["age_cat"].head(1),
+            "count": count_genus,
+            "entropy": mapped_entropy}
+        )
+        return df_return
+
+    def calc_and_write_means(self, data):
+
+        # calculate mean and standard deviation per age category
+        age_cat_means = data.groupby("age_cat").agg(
+            {'count': ['mean', 'std'],
+             'entropy': ['mean', 'std']}
+        ).reset_index()
+        age_cat_means.columns = ["_".join(x) for x in age_cat_means.columns.ravel()]
+        age_cat_means.rename(columns={'age_cat_': 'age_cat'}, inplace=True)
+        age_cat_means = age_cat_means.sort_values(["entropy_mean"])
+        file_name = "{}{}age_cat_means.txt".format(
+            self.plot_dir, self.dir_sep
+        )
+        age_cat_means.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
+    def calc_and_write_pvalues(self, data, measure):
+
+        label = "pval_{}".format(measure)
+
+        mw_data = pd.DataFrame(columns=['age_cat1', 'age_cat2', label])
+        mw_data.set_index(['age_cat1', 'age_cat2'])
+
+        age_cats1 = data.age_cat.unique()
+        age_cats2 = age_cats1.copy()
+
+        for age_cat1 in age_cats1:
+            for age_cat2 in age_cats2:
+
+                if age_cat1 == age_cat2:
+                    mw_data.loc[age_cat1, age_cat2] = 1
+                else:
+                    ds_1 = data[data.age_cat == age_cat1][measure]
+                    ds_2 = data[data.age_cat == age_cat2][measure]
+
+                    mw_result = mannwhitneyu(x=ds_1, y=ds_2)
+                    mw_data.loc[age_cat1, age_cat2] = mw_result.pvalue
+
+        mw_data = mw_data.drop(['age_cat1', 'age_cat2', label], axis=1)
+        file_name = "{}{}age_cat_p_values_{measure}.txt".format(
+            self.plot_dir, self.dir_sep, measure=measure
+        )
+        mw_data.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
     # specific ERP005989 enrichment
     # prepare data plot for the project that contains metadata about age in the sample name
@@ -531,15 +615,19 @@ class MakeSamplePlots:
 
         self.merge_df = self.prepare_data()
 
+        # adding specific metadata from sample name
+        self.merge_df = self.prepare_specifics_for_project()
+
+        self.do_statistical_analysis_on_unfiltered_data()
+
+        self.merge_df = self.drop_zero_coverage_and_normalize_data()
+
         self.genus_df = self.sort_genus_according_to_abundance()
 
         self.build_color_palette_for_ages()
 
         # before filtering
         self.make_filter_sample_plots()
-
-        # adding specific metadata from sample name
-        self.merge_df = self.prepare_specifics_for_project()
 
         self.write_mapping_statistics()
 
