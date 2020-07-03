@@ -349,7 +349,7 @@ class MakeSamplePlots:
         file_name = "{}{}age_cat_p_values_{measure}.txt".format(
             self.plot_dir, self.dir_sep, measure=measure
         )
-        mw_data.to_csv(path_or_buf=file_name, sep='\t', index=False)
+        mw_data.to_csv(path_or_buf=file_name, sep='\t', index=True)
 
     # specific ERP005989 enrichment
     # prepare data plot for the project that contains metadata about age in the sample name
@@ -368,8 +368,15 @@ class MakeSamplePlots:
 
         return merge_df
 
-    def write_mapping_statistics(self):
+    def write_normalized_mapping_statistics(self):
 
+        df = self.merge_df
+        file_name = "{}{}sample_genera_normalized_mapping_statistics.txt".format(
+            self.plot_dir, self.dir_sep,
+        )
+        df.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
+    def write_mapping_statistics(self):
         df = self.merge_df
         file_name = "{}{}sample_genera_mapping_statistics.txt".format(
             self.plot_dir, self.dir_sep,
@@ -618,8 +625,11 @@ class MakeSamplePlots:
         # adding specific metadata from sample name
         self.merge_df = self.prepare_specifics_for_project()
 
+        self.write_mapping_statistics() # all 4000 rows, also with zero coverage
+
         self.do_statistical_analysis_on_unfiltered_data()
 
+        # NB: after normalization we lose the zero coverage rows (to prevent divide by zero)
         self.merge_df = self.drop_zero_coverage_and_normalize_data()
 
         self.genus_df = self.sort_genus_according_to_abundance()
@@ -629,7 +639,8 @@ class MakeSamplePlots:
         # before filtering
         self.make_filter_sample_plots()
 
-        self.write_mapping_statistics()
+        # NB: including mapped_norm (normalized) and therefore no rows with zero coverage
+        self.write_normalized_mapping_statistics()
 
         self.merge_df = self.filter_on_breadth_threshold()
 
