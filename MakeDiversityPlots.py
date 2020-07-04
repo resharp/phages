@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns;sns.set()
 from scipy.stats import linregress
-
+from scipy.stats import mannwhitneyu
 
 # MakeDiversityPlots
 # 1. plot entropy against average coverage for genes and for all AA positions over all samples
@@ -225,6 +225,61 @@ class MakeDiversityPlots:
             self.plot_dir, self.dir_sep)
         self.protein_df.to_csv(path_or_buf=filename, sep='\t', index=False)
 
+    def do_statistical_analysis_on_filtered_data(self):
+
+        data = self.protein_df
+
+        self.calc_and_write_means(data)
+
+        self.calc_and_write_p_values(data, "snp_density")
+        self.calc_and_write_p_values(data, "entropy_mean")
+        self.calc_and_write_p_values(data, "log10_pN_pS")
+
+    def calc_and_write_means(self, data):
+
+        age_cat_means = data.groupby("age_cat").agg(
+            {'snp_density': ['mean', 'std'],
+             'entropy_mean': ['mean', 'std'],
+             'log10_pN_pS': ['mean', 'std']
+             }
+        ).reset_index()
+        age_cat_means.columns = ["_".join(x) for x in age_cat_means.columns.ravel()]
+        age_cat_means.rename(columns={'age_cat_': 'age_cat'}, inplace=True)
+        age_cat_means = age_cat_means.sort_values(["entropy_mean_mean"])
+        file_name = "{}{}age_cat_means_{ref}.txt".format(
+            self.plot_dir, self.dir_sep, ref=self.ref
+        )
+        age_cat_means.to_csv(path_or_buf=file_name, sep='\t', index=False)
+
+    # to do: generalize to compare between regions (not just age categories)
+    def calc_and_write_p_values(self, data, measure):
+
+        label = "pval_{}".format(measure)
+
+        mw_data = pd.DataFrame(columns=['age_cat1', 'age_cat2', label])
+        mw_data.set_index(['age_cat1', 'age_cat2'])
+
+        age_cats1 = data.age_cat.unique()
+        age_cats2 = age_cats1.copy()
+
+        for age_cat1 in age_cats1:
+            for age_cat2 in age_cats2:
+
+                if age_cat1 == age_cat2:
+                    mw_data.loc[age_cat1, age_cat2] = 1
+                else:
+                    ds_1 = data[data.age_cat == age_cat1][measure]
+                    ds_2 = data[data.age_cat == age_cat2][measure]
+
+                    mw_result = mannwhitneyu(x=ds_1, y=ds_2)
+                    mw_data.loc[age_cat1, age_cat2] = mw_result.pvalue
+
+        mw_data = mw_data.drop(['age_cat1', 'age_cat2', label], axis=1)
+        file_name = "{}{}age_cat_p_values_{measure}_{ref}.txt".format(
+            self.plot_dir, self.dir_sep, measure=measure, ref=self.ref
+        )
+        mw_data.to_csv(path_or_buf=file_name, sep='\t', index=True)
+
     def build_color_palette_for_ages(self):
         # If you would like to extend manually on the palette colors and copy color codes see:
         # https://github.com/mwaskom/seaborn/blob/master/seaborn/palettes.py
@@ -422,6 +477,8 @@ class MakeDiversityPlots:
 
         self.protein_df = self.filter_on_gene_breadth()
 
+        self.do_statistical_analysis_on_filtered_data()
+
         self.write_filtered_sup_table()
 
         self.build_color_palette_for_ages()
@@ -431,6 +488,7 @@ class MakeDiversityPlots:
         self.make_violin_plots()
 
         self.write_linear_regressions()
+
 
 def do_analysis(args_in):
 
@@ -483,4 +541,4 @@ do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
 #         "hvcf_a6_ms_4", "fferm_ms_11", "err844030_ms_1", "eld241-t0_s_1", "cs_ms_21"]
 # for ref in refs:
 #     do_analysis(["-d", sample_dir, "-rd", ref_dir, "-r", ref])
-do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
+# do_analysis(["-d", sample_dir, "-rd", ref_dir, "-a"])
