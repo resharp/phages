@@ -447,10 +447,17 @@ class MakeDiversityPlots:
 
             if level == "protein":
                 x_data = data_age.coverage_mean
-                y_data = data_age.entropy_mean
+                # y_data = data_age.entropy_mean
+
+                # On protein level we can also look at SNP density (not on codon level)
+                # measure = 'entropy_mean'
+                measure = 'snp_density'
+
+                y_data = data_age[measure]
             else:
+                measure = 'entropy'
                 x_data = data_age.coverage
-                y_data = data_age.entropy
+                y_data = data_age[measure]
 
             slope, intercept, r_value, p_value, std_err = linregress(x=x_data, y=y_data)
 
@@ -458,8 +465,8 @@ class MakeDiversityPlots:
                 self.ref, slope, intercept, r_value, p_value, std_err
             ]
 
-        filename = "{}{}linear_regression_for_{level}_{ref}.txt".format(
-            self.plot_dir, self.dir_sep, level=level, ref=self.ref)
+        filename = "{}{}linear_regression_for_{measure}_{level}_{ref}.txt".format(
+            self.plot_dir, self.dir_sep, measure=measure, level=level, ref=self.ref)
         df_lr.to_csv(path_or_buf=filename, sep='\t')
 
     def do_analysis(self):
