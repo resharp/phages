@@ -300,18 +300,6 @@ class MakeDiversityPlots:
         self.age_cat_palette["12 months"] = purple
         self.age_cat_palette["mother"] = orange
 
-    def make_plots(self):
-
-        # you may want to look at the plot with data points for all AA positions but it is very messy
-        # title = "{ref}: mean entropy of all position against mean coverage for that position.".format(ref=self.ref)
-        # self.plot_entropy_for_age_categories(self.aa_df, "snp_density", "codon", title)
-
-        title = "{ref}: mean SNP density of all genes against mean coverage for that gene.".format(ref=self.ref)
-        self.plot_measure_for_age_categories(self.protein_df, "snp_density", "protein", title)
-
-        title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
-        self.plot_measure_for_age_categories(self.protein_df, "entropy_mean", "protein", title)
-
     def make_violin_plots(self):
         self.make_violin_plots_measure("log10_pN_pS", "log10(pN/pS)")
         self.make_violin_plots_measure("entropy_mean", "entropy")
@@ -389,7 +377,19 @@ class MakeDiversityPlots:
         plt.savefig(filename)
         plt.clf()
 
-    def plot_measure_for_age_categories(self, data, measure, level, title):
+    def regression_plots(self):
+
+        # you may want to look at the plot with data points for all AA positions but it is very messy
+        # title = "{ref}: mean entropy of all position against mean coverage for that position.".format(ref=self.ref)
+        # self.plot_entropy_for_age_categories(self.aa_df, "snp_density", "codon", title)
+
+        title = "{ref}: mean SNP density of all genes against mean coverage for that gene.".format(ref=self.ref)
+        self.regression_plot_for_ages(self.protein_df, "snp_density", "protein", title)
+
+        title = "{ref}: mean entropy of all genes against mean coverage for that gene.".format(ref=self.ref)
+        self.regression_plot_for_ages(self.protein_df, "entropy_mean", "protein", title)
+
+    def regression_plot_for_ages(self, data, measure, level, title):
 
         data = data[data.age_cat != "all"]
 
@@ -493,9 +493,9 @@ class MakeDiversityPlots:
 
         self.build_color_palette_for_ages()
 
-        self.make_plots()
-
         self.make_violin_plots()
+
+        self.regression_plots()
 
         self.write_linear_regressions()
 
