@@ -28,6 +28,8 @@ class MakeSamplePlots:
     dir_sep = ""
     plot_dir = ""
 
+    threshold_breadth = 0
+
     sample_meta_df = None
     sample_stats_df = None
     ref_meta_df = None
@@ -45,9 +47,11 @@ class MakeSamplePlots:
 
     filter = ""
 
-    def __init__(self, sample_dir):
+    def __init__(self, sample_dir, tb):
 
         self.sample_dir = sample_dir
+        self.threshold_breadth = tb
+
         if os.name == 'nt':
             self.dir_sep = "\\"
         else:
@@ -179,10 +183,9 @@ class MakeSamplePlots:
 
         merge_df = self.merge_df
 
-        breadth_threshold = 0.05
-        self.filter = "{perc}%/1x".format(perc=breadth_threshold*100)
+        self.filter = "{perc}%/1x".format(perc=self.threshold_breadth*100)
 
-        return merge_df[merge_df.breadth_1x > breadth_threshold]
+        return merge_df[merge_df.breadth_1x > self.threshold_breadth]
 
     def make_bar_plot(self):
 
@@ -710,12 +713,15 @@ def do_analysis(args_in):
     parser.add_argument("-d", "--project_dir", dest="project_dir",
                         help="project directory with sample vs ref runs in subfolders", metavar="[project_dir]", required=True)
 
+    parser.add_argument("-tb", "--threshold_breadth", dest="threshold_breadth", metavar="[threshold_breadth]",
+                        type=float,
+                        help="threshold for breadth, between 0 and 1, will be combined with threshold for depth")
     args = parser.parse_args(args_in)
 
     print("Start running MakeSamplePlots")
     print("project_dir: " + args.project_dir)
 
-    make = MakeSamplePlots(args.project_dir)
+    make = MakeSamplePlots(args.project_dir, args.threshold_breadth)
 
     make.do_analysis()
 
@@ -725,4 +731,5 @@ def do_analysis(args_in):
 
 # to do for testing, do not use in production
 project_dir= r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
-do_analysis(["-d", project_dir])
+threshold_breadth="0.50"
+do_analysis(["-d", project_dir, "-tb", threshold_breadth])
