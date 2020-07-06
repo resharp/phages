@@ -231,9 +231,12 @@ class MakeDiversityPlots:
 
         self.calc_and_write_means(data)
 
-        self.calc_and_write_p_values(data, "snp_density")
-        self.calc_and_write_p_values(data, "entropy_mean")
-        self.calc_and_write_p_values(data, "log10_pN_pS")
+        self.calc_and_write_p_values(data, "snp_density", "age_cat")
+        self.calc_and_write_p_values(data, "entropy_mean", "age_cat")
+        self.calc_and_write_p_values(data, "log10_pN_pS", "age_cat")
+
+        data.loc[pd.isnull(data.region), "region"] = "other"
+        self.calc_and_write_p_values(data, "snp_density", "region")
 
     def calc_and_write_means(self, data):
 
@@ -251,32 +254,32 @@ class MakeDiversityPlots:
         )
         age_cat_means.to_csv(path_or_buf=file_name, sep='\t', index=False)
 
-    # to do: generalize to compare between regions (not just age categories)
-    def calc_and_write_p_values(self, data, measure):
+    # generalized to compare between regions (not just age categories)
+    def calc_and_write_p_values(self, data, measure, dimension):
 
         label = "pval_{}".format(measure)
 
-        mw_data = pd.DataFrame(columns=['age_cat1', 'age_cat2', label])
-        mw_data.set_index(['age_cat1', 'age_cat2'])
+        mw_data = pd.DataFrame(columns=['cat1', 'cat2', label])
+        mw_data.set_index(['cat1', 'cat2'])
 
-        age_cats1 = data.age_cat.unique()
-        age_cats2 = age_cats1.copy()
+        cats1 = data[dimension].unique()
+        cats2 = cats1.copy()
 
-        for age_cat1 in age_cats1:
-            for age_cat2 in age_cats2:
+        for cat1 in cats1:
+            for cat2 in cats2:
 
-                if age_cat1 == age_cat2:
-                    mw_data.loc[age_cat1, age_cat2] = 1
+                if cat1 == cat2:
+                    mw_data.loc[cat1, cat2] = 1
                 else:
-                    ds_1 = data[data.age_cat == age_cat1][measure]
-                    ds_2 = data[data.age_cat == age_cat2][measure]
+                    ds_1 = data[data[dimension] == cat1][measure]
+                    ds_2 = data[data[dimension] == cat2][measure]
 
                     mw_result = mannwhitneyu(x=ds_1, y=ds_2)
-                    mw_data.loc[age_cat1, age_cat2] = mw_result.pvalue
+                    mw_data.loc[cat1, cat2] = mw_result.pvalue
 
-        mw_data = mw_data.drop(['age_cat1', 'age_cat2', label], axis=1)
-        file_name = "{}{}age_cat_p_values_{measure}_{ref}.txt".format(
-            self.plot_dir, self.dir_sep, measure=measure, ref=self.ref
+        mw_data = mw_data.drop(['cat1', 'cat2', label], axis=1)
+        file_name = "{}{}{dimension}_p_values_{measure}_{ref}.txt".format(
+            self.plot_dir, self.dir_sep, dimension=dimension, measure=measure, ref=self.ref
         )
         mw_data.to_csv(path_or_buf=file_name, sep='\t', index=True)
 
