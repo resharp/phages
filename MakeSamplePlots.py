@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns;sns.set()
 from scipy.stats import entropy
 from scipy.stats import mannwhitneyu
+from scipy.stats import linregress
 
 import sys
 
@@ -33,6 +34,8 @@ class MakeSamplePlots:
     sample_measures_df = None
     merge_df = None
     genus_df = None
+
+    entropies_df = None
 
     genus_palette = {}
 
@@ -480,6 +483,23 @@ class MakeSamplePlots:
         plt.savefig(figure_name)
         plt.clf()
 
+    def calculate_entropies_per_sampe(self):
+
+        # use genus and mean_depth to calculate entropy for each sample and categorize for age_cat
+        df_entropies = self.merge_df.groupby(["run", "age_cat", "age_cat_short" ]).agg(
+            {
+                'mean_depth': ["mean", self.nr_genera, self.macro_entropy]
+            }
+        ).reset_index()
+
+        df_entropies.columns = ["_".join(x) for x in df_entropies.columns.ravel()]
+        df_entropies.rename(columns={'run_': 'run',
+                                     'age_cat_': 'age_cat',
+                                     "age_cat_short_": "age_cat_short",
+                                     "mean_depth_nr_genera": "nr_genera"
+                                     }, inplace=True)
+        return df_entropies
+
     @staticmethod
     def macro_entropy(mean_depth):
 
@@ -494,19 +514,7 @@ class MakeSamplePlots:
 
     def make_diversity_plots(self):
 
-        # to do: use genus and mean_depth to calculate entropy for each sample and categorize for age_cat
-        df_entropies = self.merge_df.groupby(["run", "age_cat", "age_cat_short" ]).agg(
-            {
-                'mean_depth': ["mean", self.nr_genera, self.macro_entropy]
-            }
-        ).reset_index()
-
-        df_entropies.columns = ["_".join(x) for x in df_entropies.columns.ravel()]
-        df_entropies.rename(columns={'run_': 'run',
-                                     'age_cat_': 'age_cat',
-                                     "age_cat_short_": "age_cat_short",
-                                     "mean_depth_nr_genera": "nr_genera"
-                                     }, inplace=True)
+        df_entropies = self.entropies_df
 
         self.make_cat_plot_for_age_categories(df_entropies, "mean_depth_macro_entropy",
                                               "macro diversity (Shannon entropy)")
@@ -566,6 +574,37 @@ class MakeSamplePlots:
 
         plt.savefig(figure_name)
         plt.clf()
+
+    def write_linear_regressions(self):
+
+        df_entropies = self.entropies_df
+
+        self.write_linear_regression_for_measure(df_entropies, "nr_genera")
+        self.write_linear_regression_for_measure(df_entropies, "mean_depth_macro_entropy")
+
+    def write_linear_regression_for_measure(self, data, measure):
+
+        df_lr = pd.DataFrame(columns=('slope', 'intercept', 'r_value', 'p_value', 'std_err'))
+        df_lr.index.name = 'age_cat'
+
+        age_cats = data.age_cat.unique()
+
+        for age_cat in age_cats:
+
+            data_age = data[data.age_cat == age_cat]
+
+            x_data = data_age.mean_depth_mean
+            y_data = data_age[measure]
+
+            slope, intercept, r_value, p_value, std_err = linregress(x=x_data, y=y_data)
+
+            df_lr.loc[age_cat] = [
+                slope, intercept, r_value, p_value, std_err
+            ]
+
+        filename = "{}{}linear_regression_for_{measure}.txt".format(
+            self.plot_dir, self.dir_sep, measure=measure)
+        df_lr.to_csv(path_or_buf=filename, sep='\t')
 
     def make_scatter_plots(self):
         # total number of mappings between age 4 and 12 months and mother?
@@ -652,7 +691,11 @@ class MakeSamplePlots:
         # after filtering
         self.make_abundance_plots()
 
+        self.entropies_df = self.calculate_entropies_per_sampe()
+
         self.make_diversity_plots()
+
+        self.write_linear_regressions()
 
         verbose = False
 
