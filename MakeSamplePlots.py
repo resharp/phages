@@ -297,11 +297,10 @@ class MakeSamplePlots:
         self.calc_and_write_pvalues(data, "count")
         self.calc_and_write_pvalues(data, "entropy")
 
-    @staticmethod
-    def count_nr_genera_above_threshold_and_calc_entropy(group):
+    def count_nr_genera_above_threshold_and_calc_entropy(self, group):
 
         df = group[["run", "genus", "breadth_1x", "mapped"]]
-        df = df[df.breadth_1x > 0.05]
+        df = df[df.breadth_1x > self.threshold_breadth]
 
         count_genus = df.genus.count()
         mapped_entropy = entropy(df.mapped, base=10)
@@ -486,7 +485,7 @@ class MakeSamplePlots:
         plt.savefig(figure_name)
         plt.clf()
 
-    def calculate_entropies_per_sampe(self):
+    def calculate_entropies_per_sample(self):
 
         # use genus and mean_depth to calculate entropy for each sample and categorize for age_cat
         df_entropies = self.merge_df.groupby(["run", "age_cat", "age_cat_short" ]).agg(
@@ -694,7 +693,7 @@ class MakeSamplePlots:
         # after filtering
         self.make_abundance_plots()
 
-        self.entropies_df = self.calculate_entropies_per_sampe()
+        self.entropies_df = self.calculate_entropies_per_sample()
 
         self.make_diversity_plots()
 
@@ -731,5 +730,5 @@ def do_analysis(args_in):
 
 # to do for testing, do not use in production
 project_dir= r"D:\17 Dutihl Lab\_tools\_pipeline\ERP005989"
-threshold_breadth="0.50"
+threshold_breadth="0.05"
 do_analysis(["-d", project_dir, "-tb", threshold_breadth])
