@@ -1,29 +1,40 @@
 
+
 # functional and ecological determinants of evolutionary dynamics in crAss-like phages
 contains Python code.  
 It could be merged with Linux bash scripts, which call the Python programs and 
-therefore also contain clear examples on parameter usage
+therefore also contain clear examples on parameter usage.
 
 to do
 - installation instructions
 - all Conda dependencies (refer to generated file by Conda?)
 
-# Summary 
+tip: consider using subversion commit messages as part of the documentation
 
+## Summary
+This pipeline calculates selective pressure and micro diversity measures of genes of reference genomes. Variation of genes is found by mapping metagenomic reads of samples against these reference genomes. Reference genomes, paired-end fastq files of samples and gene annotation information should be provided. This project also contains a specific gene annotation pipeline, which can be replaced by any other method.
+The main pipeline uses DiversiTools to calculate measures on codon level, which are then further aggregated on gene and gene family level.
 
-# Examples 
+## Examples 
 
 Accompanying shell scripts are in the mgx folder of:
 https://github.com/resharp/phages_scripts
 
-# Installation
+## dependencies
+
+- numpy, pandas 
+- matplotlib.pyplot, seaborn
+- scipy.stats
+- biopython, Bio.SeqIO
+
+## Installation
 this repository can be best put in local directory:
 
 source/phages
 
 the shell scripts reference the Python scripts by this path 
 
-# Annotation pipeline
+## Annotation pipeline
 
 - AnnotateCrassGenomes.py
     - All results of annotation pipeline are integrated, input:
@@ -41,7 +52,7 @@ the shell scripts reference the Python scripts by this path
 - create_categories_from_gbk.py
     - For genus 1 we created the gene positions from the GenBank file
      
-# measures calculated per sample
+## measures calculated per sample
 
 - CalcDiversiMeasures.py
     - aggregate the output of DiversiTools 
@@ -65,7 +76,7 @@ the shell scripts reference the Python scripts by this path
 creates figures 2 and 3 of main text      
 and supplementary tables [to do]        
         
-# measures calculated across samples
+## measures calculated across samples
 - CalcCodonMeasures.py
     - For cross-sample measures all reads of the samples were first stacked on top of each other, ... 
 - MakeDiversityPlots.py 
@@ -83,19 +94,19 @@ and supplementary tables [to do]
     - creates table for codon bias
     - output: codon_syn_non_syn_probabilities.txt
 
-# macro diversity
+## macro diversity
 - MakeSamplePlots.py
     - calculated  macro diversity per sample based on the sample/genome mapping statistics produced by samtools idxstats (Li 2009) on the bam files
 
 creates figure 1 and 5 of main text
 
-# Summary 
+## Summary table
 - MakeGeneSummary.py
     - integrates different statistics for genus 1 genes
     and gene families in one table
     - also contains a pangenome analysis based on the hmm hits from the protein family profiles
  
-# extra stuff
+## extra stuff
 Scripts used for selecting samples
 - ExtractSraMetadata.py
     - parses metadata files in MGXDB database
@@ -112,6 +123,12 @@ User for proof of concept:
  
     
 # clustering proteins and prophages from prophage predictions by VirSorter
+
+## extra dependencies
+- igraph, unittest2
+
+## scipts
+
 This is obsolete, and should be moved to different GIT repository:
 - MclClusterEvaluation.py
 - PhageSharedContent.py
@@ -131,5 +148,3 @@ Code for learning Pandas and python:
     - prokaryotes.cv
 - IctvStatsTest.py
     - accompanying tests
-
-
