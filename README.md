@@ -1,5 +1,5 @@
 
-# determinants of evolutionary dynamics in crAss-like phages
+# functional and ecological determinants of evolutionary dynamics in crAss-like phages
 contains Python code.  
 It could be merged with Linux bash scripts, which call the Python programs and 
 therefore also contain clear examples on parameter usage
@@ -7,7 +7,6 @@ therefore also contain clear examples on parameter usage
 to do
 - installation instructions
 - all Conda dependencies (refer to generated file by Conda?)
-- image with complete oversight of pipeline(s) 
 
 # Summary 
 
@@ -101,6 +100,7 @@ Scripts used for selecting samples
 - ExtractSraMetadata.py
     - parses metadata files in MGXDB database
     - extract samples containg a certain taxonid from metadata files
+User for proof of concept:
 - DownloadMgnifySamples.py
     - download metadata for samples and runs based on some properties
         - human gut fecal samples
