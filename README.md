@@ -1,6 +1,13 @@
 
 
-# functional and ecological determinants of evolutionary dynamics in crAss-like phages
+# Functional and ecological determinants of evolutionary dynamics in crAss-like phages
+
+This project was directed at microbial / viral ecology, metagenomics, focusing on gene-level and codon-level variation in reference genomes (of phages) and the mapping of multiple metagenomic samples to those references. 
+
+1. In the first phase I did wide net phage ecology from mining.
+2. In in the second phase I focused on a common phage crAssphage in the gut microbiome. I wrote scripts to calculates selective pressure and micro diversity measures of genes of reference genomes. Variation of genes was found by mapping metagenomic reads of samples against these reference genomes.
+
+
 contains Python code.  
 It could be merged with Linux bash scripts, which call the Python programs and 
 therefore also contain clear examples on parameter usage.
