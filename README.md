@@ -9,7 +9,7 @@ to do
 - installation instructions
 - all Conda dependencies (refer to generated file by Conda?)
 
-tip: consider using subversion commit messages as part of the documentation
+tip: consider using github commit messages as part of the documentation
 
 ## Summary
 This pipeline calculates selective pressure and micro diversity measures of genes of reference genomes. Variation of genes is found by mapping metagenomic reads of samples against these reference genomes. Reference genomes, paired-end fastq files of samples and gene annotation information should be provided. This project also contains a specific gene annotation pipeline, which can be replaced by any other method.
